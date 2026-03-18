@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#89b4fa"/>
+  <text
+    x="256" y="400"
+    text-anchor="middle"
+    font-family="Fraunces"
+    font-size="420"
+    font-weight="800"
+    fill="#1e1e2e"
+    letter-spacing="-10"
+  >Z</text>
+</svg>
