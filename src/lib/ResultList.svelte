@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SearchResult } from './tauri';
+  import type { PluginResult } from './tauri';
   import ResultItem from './ResultItem.svelte';
 
   let {
@@ -7,7 +7,7 @@
     selectedIndex,
     onselect,
   }: {
-    results: SearchResult[];
+    results: PluginResult[];
     selectedIndex: number;
     onselect: (index: number) => void;
   } = $props();

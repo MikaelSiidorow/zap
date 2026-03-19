@@ -1,9 +1,5 @@
 mod commands;
-mod indexer;
-mod platform;
-mod search;
 
-use indexer::AppIndex;
 use log::{debug, error, info, warn};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -12,6 +8,8 @@ use tauri::{
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
+use zap_core::PluginHost;
+use zap_plugin_apps::AppsPlugin;
 
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
 
@@ -115,8 +113,8 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             "show" => show_window(app),
             "reindex" => {
                 info!("Reindexing apps...");
-                let index = app.state::<AppIndex>();
-                index.refresh();
+                let host = app.state::<PluginHost>();
+                host.refresh_all();
                 info!("Reindex complete");
             }
             "quit" => app.exit(0),
@@ -134,8 +132,9 @@ pub fn run() {
         .format_target(false)
         .init();
 
-    let platform = platform::create_platform();
-    let index = AppIndex::new(platform);
+    let mut host = PluginHost::new();
+    host.register(Box::new(AppsPlugin::new()));
+    host.init_all().expect("failed to initialize plugins");
 
     tauri::Builder::default()
         .setup(move |app| {
@@ -170,8 +169,7 @@ pub fn run() {
                 }
             }
 
-            index.spawn_refresh_task();
-            app.manage(index);
+            app.manage(host);
 
             setup_tray(app)?;
 
@@ -249,7 +247,11 @@ pub fn run() {
                 }
             });
         })
-        .invoke_handler(tauri::generate_handler![commands::search, commands::launch, commands::hide_window])
+        .invoke_handler(tauri::generate_handler![
+            commands::search,
+            commands::execute,
+            commands::hide_window
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

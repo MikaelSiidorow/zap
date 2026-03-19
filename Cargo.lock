@@ -5159,22 +5159,43 @@ name = "zap"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "compact_str",
- "dirs",
  "env_logger",
  "gdk",
  "gtk",
  "log",
- "nucleo-matcher",
  "parking_lot",
  "percent-encoding",
- "plist",
- "rmp-serde",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-global-shortcut",
+ "zap-core",
+ "zap-plugin-apps",
+]
+
+[[package]]
+name = "zap-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+]
+
+[[package]]
+name = "zap-plugin-apps"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "compact_str",
+ "dirs",
+ "log",
+ "nucleo-matcher",
+ "parking_lot",
+ "plist",
+ "rmp-serde",
+ "serde",
+ "zap-core",
 ]
 
 [[package]]

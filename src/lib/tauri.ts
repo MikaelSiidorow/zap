@@ -1,21 +1,21 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export interface SearchResult {
+export interface PluginResult {
   id: string;
-  name: string;
-  exec_path: string;
+  plugin_id: string;
+  title: string;
+  subtitle: string | null;
   icon_path: string | null;
-  category: string | null;
   score: number;
   match_indices: number[];
 }
 
-export async function search(query: string): Promise<SearchResult[]> {
+export async function search(query: string): Promise<PluginResult[]> {
   return invoke('search', { query });
 }
 
-export async function launch(id: string): Promise<void> {
-  return invoke('launch', { id });
+export async function execute(pluginId: string, resultId: string): Promise<void> {
+  return invoke('execute', { pluginId, resultId });
 }
 
 export async function hideWindow(): Promise<void> {

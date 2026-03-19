@@ -1,30 +1,19 @@
 use crate::platform::AppEntry;
 use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization};
 use nucleo_matcher::{Config, Matcher, Utf32String};
-use serde::Serialize;
+use zap_core::PluginResult;
 
-#[derive(Clone, Serialize)]
-pub struct SearchResult {
-    pub id: String,
-    pub name: String,
-    pub exec_path: String,
-    pub icon_path: Option<String>,
-    pub category: Option<String>,
-    pub score: u32,
-    pub match_indices: Vec<u32>,
-}
-
-pub fn search(query: &str, apps: &[AppEntry]) -> Vec<SearchResult> {
+pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResult> {
     if query.is_empty() {
         return apps
             .iter()
             .take(9)
-            .map(|app| SearchResult {
+            .map(|app| PluginResult {
                 id: app.id.clone(),
-                name: app.name.to_string(),
-                exec_path: app.exec_path.clone(),
+                plugin_id: plugin_id.to_string(),
+                title: app.name.to_string(),
+                subtitle: app.category.clone(),
                 icon_path: app.icon_path.clone(),
-                category: app.category.clone(),
                 score: 0,
                 match_indices: vec![],
             })
@@ -40,7 +29,7 @@ pub fn search(query: &str, apps: &[AppEntry]) -> Vec<SearchResult> {
         false,
     );
 
-    let mut results: Vec<SearchResult> = apps
+    let mut results: Vec<PluginResult> = apps
         .iter()
         .filter_map(|app| {
             let haystack = Utf32String::from(app.name.as_str());
@@ -48,12 +37,12 @@ pub fn search(query: &str, apps: &[AppEntry]) -> Vec<SearchResult> {
             let score = atom.indices(haystack.slice(..), &mut matcher, &mut indices)?;
             indices.sort_unstable();
             indices.dedup();
-            Some(SearchResult {
+            Some(PluginResult {
                 id: app.id.clone(),
-                name: app.name.to_string(),
-                exec_path: app.exec_path.clone(),
+                plugin_id: plugin_id.to_string(),
+                title: app.name.to_string(),
+                subtitle: app.category.clone(),
                 icon_path: app.icon_path.clone(),
-                category: app.category.clone(),
                 score: score as u32,
                 match_indices: indices,
             })

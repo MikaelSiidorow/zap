@@ -1,17 +1,20 @@
-use crate::indexer::AppIndex;
-use crate::search::SearchResult;
 use tauri::Manager;
+use zap_core::{PluginHost, PluginResult};
 
 #[tauri::command]
-pub fn search(query: String, state: tauri::State<'_, AppIndex>) -> Vec<SearchResult> {
-    let apps = state.apps();
-    crate::search::search(&query, &apps)
+pub fn search(query: String, state: tauri::State<'_, PluginHost>) -> Vec<PluginResult> {
+    state.search(&query)
 }
 
 #[tauri::command]
-pub fn launch(id: String, state: tauri::State<'_, AppIndex>) -> Result<(), String> {
-    let app = state.find_by_id(&id).ok_or("App not found")?;
-    state.platform().launch_app(&app).map_err(|e| e.to_string())
+pub fn execute(
+    plugin_id: String,
+    result_id: String,
+    state: tauri::State<'_, PluginHost>,
+) -> Result<(), String> {
+    state
+        .execute(&plugin_id, &result_id)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

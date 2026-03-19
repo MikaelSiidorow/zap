@@ -3,11 +3,11 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, launch, hideWindow, type SearchResult } from '$lib/tauri';
+  import { search, execute, hideWindow, type PluginResult } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
-  let results = $state<SearchResult[]>([]);
+  let results = $state<PluginResult[]>([]);
   let selectedIndex = $state(0);
   let unlisten: (() => void) | undefined;
 
@@ -51,7 +51,7 @@
         break;
       case 'select':
         if (results[action.index]) {
-          launch(results[action.index].id);
+          execute(results[action.index].plugin_id, results[action.index].id);
           hide();
         }
         break;
@@ -72,7 +72,7 @@
     {#if results.length > 0}
       <div class="divider"></div>
       <ResultList {results} {selectedIndex} onselect={(i) => {
-        launch(results[i].id);
+        execute(results[i].plugin_id, results[i].id);
         hide();
       }} />
     {/if}

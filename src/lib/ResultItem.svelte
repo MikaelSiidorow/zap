@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { SearchResult } from './tauri';
+  import type { PluginResult } from './tauri';
 
   let {
     result,
     selected,
     onclick,
   }: {
-    result: SearchResult;
+    result: PluginResult;
     selected: boolean;
     onclick: () => void;
   } = $props();
@@ -19,7 +19,7 @@
 
   function highlightedChars(): { char: string; highlight: boolean }[] {
     const indices = new Set(result.match_indices);
-    return [...result.name].map((char, i) => ({
+    return [...result.title].map((char, i) => ({
       char,
       highlight: indices.has(i),
     }));
@@ -38,7 +38,7 @@
   {#if result.icon_path && !iconError}
     <img src={iconUrl(result.icon_path)} alt="" class="icon" onerror={() => iconError = true} />
   {:else}
-    <div class="icon-placeholder">{result.name[0]}</div>
+    <div class="icon-placeholder">{result.title[0]}</div>
   {/if}
   <div class="info">
     <span class="name">
@@ -50,8 +50,8 @@
         {/if}
       {/each}
     </span>
-    {#if result.category}
-      <span class="category">{result.category}</span>
+    {#if result.subtitle}
+      <span class="category">{result.subtitle}</span>
     {/if}
   </div>
 </li>
