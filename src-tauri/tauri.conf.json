@@ -10,11 +10,20 @@
     "frontendDist": "../build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "zap",
-        "width": 800,
-        "height": 600
+        "width": 680,
+        "height": 420,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "center": true,
+        "visible": false,
+        "resizable": false,
+        "skipTaskbar": true
       }
     ],
     "security": {
