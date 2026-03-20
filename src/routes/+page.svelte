@@ -3,12 +3,13 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, hideWindow, type PluginResult } from '$lib/tauri';
+  import { search, execute, copyToClipboard, hideWindow, type PluginResult } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
   let results = $state<PluginResult[]>([]);
   let selectedIndex = $state(0);
+  let feedback = $state<string | null>(null);
   let unlisten: (() => void) | undefined;
 
   $effect(() => {
@@ -26,6 +27,7 @@
       query = '';
       results = [];
       selectedIndex = 0;
+      feedback = null;
     });
   });
 
@@ -33,11 +35,35 @@
     unlisten?.();
   });
 
-  function hide() {
+  function reset() {
     query = '';
     results = [];
     selectedIndex = 0;
+    feedback = null;
+  }
+
+  function hide() {
+    reset();
     hideWindow();
+  }
+
+  async function activateResult(result: PluginResult) {
+    switch (result.action.type) {
+      case 'Copy':
+        await copyToClipboard(result.action.content);
+        feedback = 'Copied to clipboard';
+        setTimeout(hide, 600);
+        break;
+      case 'OpenUrl':
+        // Future: open URL in browser
+        hide();
+        break;
+      case 'Open':
+      default:
+        await execute(result.plugin_id, result.id);
+        hide();
+        break;
+    }
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -51,8 +77,7 @@
         break;
       case 'select':
         if (results[action.index]) {
-          execute(results[action.index].plugin_id, results[action.index].id);
-          hide();
+          activateResult(results[action.index]);
         }
         break;
       case 'hide':
@@ -69,12 +94,12 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <main onclick={(e) => e.stopPropagation()}>
     <SearchBar bind:value={query} />
-    {#if results.length > 0}
+    {#if feedback}
       <div class="divider"></div>
-      <ResultList {results} {selectedIndex} onselect={(i) => {
-        execute(results[i].plugin_id, results[i].id);
-        hide();
-      }} />
+      <div class="feedback">{feedback}</div>
+    {:else if results.length > 0}
+      <div class="divider"></div>
+      <ResultList {results} {selectedIndex} onselect={(i) => activateResult(results[i])} />
     {/if}
   </main>
 </div>
@@ -102,5 +127,12 @@
   .divider {
     height: 1px;
     background: var(--border);
+  }
+
+  .feedback {
+    padding: 16px 20px;
+    font-size: 14px;
+    color: var(--text-muted);
+    text-align: center;
   }
 </style>

@@ -1,7 +1,7 @@
 use crate::platform::AppEntry;
 use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization};
 use nucleo_matcher::{Config, Matcher, Utf32String};
-use zap_core::PluginResult;
+use zap_core::{Action, PluginResult};
 
 pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResult> {
     if query.is_empty() {
@@ -16,6 +16,7 @@ pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResu
                 icon_path: app.icon_path.clone(),
                 score: 0,
                 match_indices: vec![],
+                action: Action::default(),
             })
             .collect();
     }
@@ -45,6 +46,7 @@ pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResu
                 icon_path: app.icon_path.clone(),
                 score: score as u32,
                 match_indices: indices,
+                action: Action::default(),
             })
         })
         .collect();

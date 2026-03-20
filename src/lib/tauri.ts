@@ -1,5 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
 
+export type Action =
+  | { type: 'Open' }
+  | { type: 'Copy'; content: string }
+  | { type: 'OpenUrl'; url: string };
+
 export interface PluginResult {
   id: string;
   plugin_id: string;
@@ -8,6 +13,7 @@ export interface PluginResult {
   icon_path: string | null;
   score: number;
   match_indices: number[];
+  action: Action;
 }
 
 export async function search(query: string): Promise<PluginResult[]> {
@@ -16,6 +22,10 @@ export async function search(query: string): Promise<PluginResult[]> {
 
 export async function execute(pluginId: string, resultId: string): Promise<void> {
   return invoke('execute', { pluginId, resultId });
+}
+
+export async function copyToClipboard(text: string): Promise<void> {
+  return invoke('copy_to_clipboard', { text });
 }
 
 export async function hideWindow(): Promise<void> {

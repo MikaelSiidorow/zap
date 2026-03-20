@@ -1,5 +1,19 @@
 use serde::Serialize;
 
+/// Typed action declared on a result. The runtime handles execution and feedback,
+/// inspired by Raycast's action model (e.g. Action.CopyToClipboard).
+#[derive(Clone, Serialize, Default)]
+#[serde(tag = "type")]
+pub enum Action {
+    /// Plugin handles execution via execute() callback.
+    #[default]
+    Open,
+    /// Copy text to clipboard. Runtime shows "Copied to clipboard" feedback.
+    Copy { content: String },
+    /// Open a URL in the default browser.
+    OpenUrl { url: String },
+}
+
 #[derive(Clone, Serialize)]
 pub struct PluginResult {
     pub id: String,
@@ -9,6 +23,8 @@ pub struct PluginResult {
     pub icon_path: Option<String>,
     pub score: u32,
     pub match_indices: Vec<u32>,
+    #[serde(default)]
+    pub action: Action,
 }
 
 pub trait Plugin: Send + Sync {
@@ -21,6 +37,7 @@ pub trait Plugin: Send + Sync {
         Ok(())
     }
     fn search(&self, query: &str) -> Vec<PluginResult>;
+    /// Called only for results with Action::Open.
     fn execute(&self, result_id: &str) -> anyhow::Result<()>;
     fn refresh(&self) {}
 }

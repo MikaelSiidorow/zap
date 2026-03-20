@@ -37,7 +37,7 @@
 >
   {#if result.icon_path && !iconError}
     <img src={iconUrl(result.icon_path)} alt="" class="icon" onerror={() => iconError = true} />
-  {:else}
+  {:else if result.icon_path}
     <div class="icon-placeholder">{result.title[0]}</div>
   {/if}
   <div class="info">
