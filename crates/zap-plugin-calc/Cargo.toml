@@ -1,0 +1,8 @@
+[package]
+name = "zap-plugin-calc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zap-core = { path = "../zap-core" }
+anyhow = "1"
