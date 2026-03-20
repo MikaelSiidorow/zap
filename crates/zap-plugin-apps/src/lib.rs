@@ -33,6 +33,14 @@ impl Plugin for AppsPlugin {
         "Applications"
     }
 
+    fn description(&self) -> &str {
+        "Search and launch installed applications"
+    }
+
+    fn example(&self) -> Option<&str> {
+        Some("firefox")
+    }
+
     fn init(&mut self) -> anyhow::Result<()> {
         self.index.spawn_refresh_task();
         Ok(())

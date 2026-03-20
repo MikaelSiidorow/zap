@@ -56,6 +56,8 @@ Why 9 results? Raycast uses 9. It's one result per digit key (for future keyboar
 pub trait Plugin: Send + Sync {
     fn id(&self) -> &str;
     fn name(&self) -> &str;
+    fn description(&self) -> &str { "" }
+    fn example(&self) -> Option<&str> { None }
     fn prefix(&self) -> Option<&str> { None }
     fn init(&mut self) -> anyhow::Result<()> { Ok(()) }
     fn search(&self, query: &str) -> Vec<PluginResult>;
@@ -65,6 +67,10 @@ pub trait Plugin: Send + Sync {
 ```
 
 **`Send + Sync`** — Plugins are stored in `PluginHost` which is managed as Tauri state (shared across threads). The trait is object-safe (`Box<dyn Plugin>`) so plugins are registered dynamically at startup.
+
+**`description(&self)`** — Human-readable description of what the plugin does. Used by the built-in `?` help system.
+
+**`example(&self)`** — Example query showing how to use the plugin (e.g. `"= 2+2"` for calc, `"firefox"` for apps). Shown in `?` help results alongside the description.
 
 **`search(&self, query: &str)`** — Takes `&self`, not `&mut self`. Search must be safe to call concurrently. Plugins that need mutable state (like the app index) use interior mutability (`RwLock`, `parking_lot::Mutex`).
 
@@ -80,12 +86,15 @@ pub struct PluginResult {
     pub plugin_id: String,
     pub title: String,
     pub subtitle: Option<String>,
+    pub description: Option<String>,
     pub icon_path: Option<String>,
     pub score: u32,
     pub match_indices: Vec<u32>,
     pub action: Action,
 }
 ```
+
+**`description: Option<String>`** — Optional longer description, rendered as a third line below title and subtitle. When present, the result item switches to a stacked (vertical) layout. Used by the `?` help system to show plugin descriptions. Most results leave this `None`.
 
 **`icon_path: Option<String>`** — File path to an icon. `None` means no icon is displayed (no placeholder, no fallback). This is intentional: the calculator result "4" should not show a gray square with "4" in it. When `icon_path` is `Some` but the image fails to load, the frontend falls back to a letter placeholder (first character of title).
 
@@ -102,6 +111,7 @@ The frontend receives serialized results including the action. On Enter (or clic
 | `Open` | Calls `execute(plugin_id, result_id)` Tauri command, then hides window | None (app launches, file opens, etc.) |
 | `Copy` | Calls `copy_to_clipboard(content)` Tauri command | Shows "Copied to clipboard" for 600ms, then hides |
 | `OpenUrl` | Opens URL via system browser | Hides window |
+| `SetQuery` | Sets the search bar to the given query | Stays open (triggers new search) |
 
 Clipboard is handled by `arboard` in the Tauri layer — not in any plugin crate. This keeps plugin dependencies minimal.
 
@@ -164,6 +174,19 @@ Frontend reads action.type == "Open"
     │  └─ AppsPlugin::execute("firefox.desktop") → launches Firefox
     └─ hide window
 ```
+
+## Built-in Help (`?`)
+
+Typing `?` lists all prefixed plugins. This is built into `PluginHost`, not a separate plugin — it reads `name()`, `description()`, and `example()` from each registered plugin. Prefix-less plugins (like apps) are excluded since they have no special syntax to teach.
+
+Each result shows three lines for quick scanning:
+- **Title** — plugin name (e.g., "Calculator")
+- **Subtitle** — example command in monospace (e.g., `= 2+2`)
+- **Description** — what it does (e.g., "Inline calculator for math expressions")
+
+Typing `? calc` filters the list. Pressing Enter fills the plugin's prefix into the search bar via `Action::SetQuery`, so you can immediately start using it.
+
+The search placeholder reads "Search or type ? for help" to hint at this feature.
 
 ## Current Plugins
 

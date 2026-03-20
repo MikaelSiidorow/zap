@@ -13,6 +13,14 @@ impl Plugin for CalcPlugin {
         "Calculator"
     }
 
+    fn description(&self) -> &str {
+        "Inline calculator for math expressions"
+    }
+
+    fn example(&self) -> Option<&str> {
+        Some("= 2+2")
+    }
+
     fn prefix(&self) -> Option<&str> {
         Some("=")
     }
@@ -30,6 +38,7 @@ impl Plugin for CalcPlugin {
                     plugin_id: "calc".into(),
                     title: formatted.clone(),
                     subtitle: Some(format!("= {input}")),
+                    description: None,
                     icon_path: None,
                     score: 100,
                     match_indices: vec![],

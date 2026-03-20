@@ -3,13 +3,15 @@ import { invoke } from '@tauri-apps/api/core';
 export type Action =
   | { type: 'Open' }
   | { type: 'Copy'; content: string }
-  | { type: 'OpenUrl'; url: string };
+  | { type: 'OpenUrl'; url: string }
+  | { type: 'SetQuery'; query: string };
 
 export interface PluginResult {
   id: string;
   plugin_id: string;
   title: string;
   subtitle: string | null;
+  description: string | null;
   icon_path: string | null;
   score: number;
   match_indices: number[];

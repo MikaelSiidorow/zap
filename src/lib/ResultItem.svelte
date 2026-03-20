@@ -40,7 +40,7 @@
   {:else if result.icon_path}
     <div class="icon-placeholder">{result.title[0]}</div>
   {/if}
-  <div class="info">
+  <div class="info" class:stacked={result.description}>
     <span class="name">
       {#each highlightedChars() as { char, highlight }}
         {#if highlight}
@@ -51,7 +51,10 @@
       {/each}
     </span>
     {#if result.subtitle}
-      <span class="category">{result.subtitle}</span>
+      <span class="subtitle">{result.subtitle}</span>
+    {/if}
+    {#if result.description}
+      <span class="description">{result.description}</span>
     {/if}
   </div>
 </li>
@@ -100,6 +103,12 @@
     min-width: 0;
   }
 
+  .info.stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
   .name {
     font-size: 15px;
     white-space: nowrap;
@@ -107,10 +116,23 @@
     text-overflow: ellipsis;
   }
 
-  .category {
+  .subtitle {
     font-size: 12px;
     color: var(--text-muted);
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  .info.stacked .subtitle {
+    font-size: 13px;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  .description {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>

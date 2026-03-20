@@ -12,6 +12,8 @@ pub enum Action {
     Copy { content: String },
     /// Open a URL in the default browser.
     OpenUrl { url: String },
+    /// Set the search query (e.g. fill in a plugin prefix).
+    SetQuery { query: String },
 }
 
 #[derive(Clone, Serialize)]
@@ -20,6 +22,7 @@ pub struct PluginResult {
     pub plugin_id: String,
     pub title: String,
     pub subtitle: Option<String>,
+    pub description: Option<String>,
     pub icon_path: Option<String>,
     pub score: u32,
     pub match_indices: Vec<u32>,
@@ -30,6 +33,12 @@ pub struct PluginResult {
 pub trait Plugin: Send + Sync {
     fn id(&self) -> &str;
     fn name(&self) -> &str;
+    fn description(&self) -> &str {
+        ""
+    }
+    fn example(&self) -> Option<&str> {
+        None
+    }
     fn prefix(&self) -> Option<&str> {
         None
     }
@@ -65,6 +74,11 @@ impl PluginHost {
     }
 
     pub fn search(&self, query: &str) -> Vec<PluginResult> {
+        // Built-in "?" prefix → list installed plugins
+        if let Some(filter) = query.strip_prefix('?') {
+            return self.help_results(filter.trim());
+        }
+
         // Check for prefix match → exclusive routing
         if let Some(plugin) = self
             .plugins
@@ -86,6 +100,42 @@ impl PluginHost {
         results.sort_by(|a, b| b.score.cmp(&a.score));
         results.truncate(9);
         results
+    }
+
+    fn help_results(&self, filter: &str) -> Vec<PluginResult> {
+        let filter_lower = filter.to_lowercase();
+        self.plugins
+            .iter()
+            .filter(|p| p.prefix().is_some())
+            .filter(|p| {
+                filter.is_empty()
+                    || p.name().to_lowercase().contains(&filter_lower)
+                    || p.id().to_lowercase().contains(&filter_lower)
+            })
+            .map(|p| {
+                let prefix = p.prefix().unwrap();
+                let subtitle = p.example().map(String::from);
+                let desc = p.description();
+                let description = if desc.is_empty() {
+                    None
+                } else {
+                    Some(desc.to_string())
+                };
+                PluginResult {
+                    id: p.id().into(),
+                    plugin_id: "_help".into(),
+                    title: p.name().into(),
+                    subtitle,
+                    description,
+                    icon_path: None,
+                    score: 0,
+                    match_indices: vec![],
+                    action: Action::SetQuery {
+                        query: prefix.to_string(),
+                    },
+                }
+            })
+            .collect()
     }
 
     pub fn execute(&self, plugin_id: &str, result_id: &str) -> anyhow::Result<()> {

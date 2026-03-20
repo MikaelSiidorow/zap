@@ -54,6 +54,9 @@
         feedback = 'Copied to clipboard';
         setTimeout(hide, 600);
         break;
+      case 'SetQuery':
+        query = result.action.query;
+        break;
       case 'OpenUrl':
         // Future: open URL in browser
         hide();

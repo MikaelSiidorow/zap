@@ -21,7 +21,7 @@
 <input
   bind:this={inputEl}
   bind:value
-  placeholder="Search applications..."
+  placeholder="Search or type ? for help"
   autofocus
   type="text"
   spellcheck="false"
