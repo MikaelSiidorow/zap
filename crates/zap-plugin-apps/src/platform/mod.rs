@@ -2,6 +2,8 @@
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
 
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
@@ -30,4 +32,9 @@ pub fn create_platform() -> Arc<dyn Platform> {
 #[cfg(target_os = "linux")]
 pub fn create_platform() -> Arc<dyn Platform> {
     Arc::new(linux::LinuxPlatform)
+}
+
+#[cfg(target_os = "windows")]
+pub fn create_platform() -> Arc<dyn Platform> {
+    Arc::new(windows::WindowsPlatform)
 }

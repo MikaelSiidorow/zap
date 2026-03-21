@@ -147,6 +147,9 @@ pub fn run() {
             {
                 use tauri_plugin_global_shortcut::ShortcutState;
 
+                #[cfg(target_os = "windows")]
+                let shortcut = "ctrl+space";
+                #[cfg(not(target_os = "windows"))]
                 let shortcut = "alt+space";
                 match tauri_plugin_global_shortcut::Builder::new().with_shortcuts([shortcut]) {
                     Ok(builder) => {
