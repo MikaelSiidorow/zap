@@ -152,6 +152,8 @@ fn normalize_unit(input: &str) -> Option<String> {
         "h" | "hr" | "hour" | "hours" => "h",
         "d" | "day" | "days" => "d",
         "wk" | "week" | "weeks" => "wk",
+        "yr" | "year" | "years" => "yr",
+        "mo" | "month" | "months" => "mo",
 
         // Energy
         "j" | "joule" | "joules" => "J",
@@ -213,7 +215,7 @@ fn dimension(unit: &str) -> &'static str {
         "mph" | "km/h" | "m/s" | "knot" => "speed",
         "m²" | "ft²" | "mi²" | "km²" | "ha" | "acre" => "area",
         "B" | "KB" | "MB" | "GB" | "TB" => "data",
-        "s" | "min" | "h" | "d" | "wk" => "time",
+        "s" | "min" | "h" | "d" | "wk" | "mo" | "yr" => "time",
         "J" | "kJ" | "cal" | "kcal" | "kWh" => "energy",
         _ => "unknown",
     }
@@ -280,6 +282,8 @@ fn to_base_factor(unit: &str) -> Option<f64> {
         "h" => 3600.0,
         "d" => 86400.0,
         "wk" => 604800.0,
+        "mo" => 2_629_746.0,  // average month (365.25/12 days)
+        "yr" => 31_557_600.0, // Julian year (365.25 days)
 
         // Energy → joules
         "J" => 1.0,
@@ -445,6 +449,20 @@ fn display_unit(unit: &str, value: f64) -> &str {
                 "week"
             }
         }
+        "mo" => {
+            if plural {
+                "months"
+            } else {
+                "month"
+            }
+        }
+        "yr" => {
+            if plural {
+                "years"
+            } else {
+                "year"
+            }
+        }
 
         // Energy
         "J" => "J",
@@ -571,6 +589,24 @@ mod tests {
     fn test_negative_temperature() {
         let r = try_convert("-40 C to F").unwrap();
         assert_eq!(r.title, "-40 °F");
+    }
+
+    #[test]
+    fn test_year_to_seconds() {
+        let r = try_convert("1 year to seconds").unwrap();
+        assert_eq!(r.title, "31557600 s");
+    }
+
+    #[test]
+    fn test_days_to_years() {
+        let r = try_convert("365.25 days to years").unwrap();
+        assert_eq!(r.title, "1 year");
+    }
+
+    #[test]
+    fn test_month_to_days() {
+        let r = try_convert("1 month to days").unwrap();
+        assert!(r.title.starts_with("30.4"));
     }
 
     #[test]
