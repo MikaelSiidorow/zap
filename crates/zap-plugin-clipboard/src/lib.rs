@@ -56,7 +56,18 @@ impl Plugin for ClipboardPlugin {
         Some("cb ")
     }
 
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self, config: zap_core::serde_json::Value) -> anyhow::Result<()> {
+        // Apply config overrides
+        if let Some(v) = config.get("max_age_days").and_then(|v| v.as_u64()) {
+            self.config.max_age_days = v as u32;
+        }
+        if let Some(v) = config.get("max_entries").and_then(|v| v.as_u64()) {
+            self.config.max_entries = v as usize;
+        }
+        if let Some(v) = config.get("poll_interval_ms").and_then(|v| v.as_u64()) {
+            self.config.poll_interval_ms = v;
+        }
+
         // Ensure data directory exists
         if let Some(parent) = self.db_path.parent() {
             std::fs::create_dir_all(parent)?;

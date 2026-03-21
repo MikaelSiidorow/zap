@@ -41,7 +41,7 @@ impl Plugin for AppsPlugin {
         Some("firefox")
     }
 
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self, _config: zap_core::serde_json::Value) -> anyhow::Result<()> {
         self.index.spawn_refresh_task();
         Ok(())
     }

@@ -1,4 +1,5 @@
 mod commands;
+mod config;
 
 use log::{debug, error, info, warn};
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -12,15 +13,21 @@ use zap_core::PluginHost;
 use zap_plugin_apps::AppsPlugin;
 use zap_plugin_calc::CalcPlugin;
 use zap_plugin_clipboard::ClipboardPlugin;
+use zap_plugin_websearch::WebSearchPlugin;
 
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
 
+#[cfg(unix)]
 pub fn socket_path() -> std::path::PathBuf {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::env::temp_dir());
     runtime_dir.join("zap.sock")
 }
+
+/// Windows IPC uses a localhost TCP port.
+#[cfg(windows)]
+pub const IPC_PORT: u16 = 52583;
 
 fn now_ms() -> i64 {
     SystemTime::now()
@@ -77,6 +84,7 @@ fn show_window(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg(unix)]
 fn spawn_socket_listener(app: tauri::AppHandle) {
     use std::os::unix::net::UnixListener;
 
@@ -95,6 +103,28 @@ fn spawn_socket_listener(app: tauri::AppHandle) {
         for stream in listener.incoming() {
             if stream.is_ok() {
                 debug!("Toggle via socket");
+                toggle_window(&app);
+            }
+        }
+    });
+}
+
+#[cfg(windows)]
+fn spawn_socket_listener(app: tauri::AppHandle) {
+    use std::net::TcpListener;
+
+    std::thread::spawn(move || {
+        let listener = match TcpListener::bind(("127.0.0.1", IPC_PORT)) {
+            Ok(l) => l,
+            Err(e) => {
+                error!("Failed to bind TCP listener: {e}");
+                return;
+            }
+        };
+        info!("IPC listener ready on 127.0.0.1:{IPC_PORT}");
+        for stream in listener.incoming() {
+            if stream.is_ok() {
+                debug!("Toggle via TCP");
                 toggle_window(&app);
             }
         }
@@ -135,11 +165,16 @@ pub fn run() {
         .write_style(env_logger::WriteStyle::Always)
         .init();
 
+    let plugin_config = config::load_config();
+    info!("Loaded config with {} sections", plugin_config.len());
+
     let mut host = PluginHost::new();
     host.register(Box::new(AppsPlugin::new()));
     host.register(Box::new(CalcPlugin));
     host.register(Box::new(ClipboardPlugin::new()));
-    host.init_all().expect("failed to initialize plugins");
+    host.register(Box::new(WebSearchPlugin::new()));
+    host.init_all(&plugin_config)
+        .expect("failed to initialize plugins");
 
     tauri::Builder::default()
         .setup(move |app| {

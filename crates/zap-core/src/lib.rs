@@ -1,3 +1,4 @@
+pub use serde_json;
 use serde::Serialize;
 
 /// Typed action declared on a result. The runtime handles execution and feedback,
@@ -54,7 +55,7 @@ pub trait Plugin: Send + Sync {
     fn prefix(&self) -> Option<&str> {
         None
     }
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self, _config: serde_json::Value) -> anyhow::Result<()> {
         Ok(())
     }
     fn search(&self, query: &str) -> Vec<PluginResult>;
@@ -81,9 +82,16 @@ impl PluginHost {
         self.plugins.push(plugin);
     }
 
-    pub fn init_all(&mut self) -> anyhow::Result<()> {
+    pub fn init_all(
+        &mut self,
+        config: &std::collections::HashMap<String, serde_json::Value>,
+    ) -> anyhow::Result<()> {
         for plugin in &mut self.plugins {
-            plugin.init()?;
+            let section = config
+                .get(plugin.id())
+                .cloned()
+                .unwrap_or(serde_json::Value::Object(Default::default()));
+            plugin.init(section)?;
         }
         Ok(())
     }

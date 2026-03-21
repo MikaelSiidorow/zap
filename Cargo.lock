@@ -5684,10 +5684,12 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-global-shortcut",
+ "toml 0.8.2",
  "zap-core",
  "zap-plugin-apps",
  "zap-plugin-calc",
  "zap-plugin-clipboard",
+ "zap-plugin-websearch",
 ]
 
 [[package]]
@@ -5696,6 +5698,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5737,6 +5740,17 @@ dependencies = [
  "rusqlite",
  "sha2",
  "time",
+ "zap-core",
+]
+
+[[package]]
+name = "zap-plugin-websearch"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "percent-encoding",
+ "serde",
  "zap-core",
 ]
 
