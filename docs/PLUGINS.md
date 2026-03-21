@@ -36,19 +36,38 @@ This is unlike Alfred (where `arg` is an opaque string piped to workflow nodes) 
 
 `Action::Open` is the escape hatch — the plugin's `execute()` method is called, and it can do whatever it wants (launch an app, run a script, etc.). This is the default for backwards compatibility and for plugins that need custom behavior.
 
-### Prefix routing
+### Query routing: dual-track model
 
-Plugins can declare an optional prefix. When the user types that prefix, **only** that plugin receives the query (with the prefix stripped). No other plugin is consulted.
+Zap uses a dual-track query routing model, matching Albert's `TriggerQueryHandler` vs `GlobalQueryHandler` split:
+
+| Track | Trigger | Behavior | Good for |
+|-------|---------|----------|----------|
+| **Prefix (exclusive)** | Query starts with a plugin's prefix (e.g. `= `, `cb `) | Routed to that one plugin only, prefix stripped | High-volume domain search (clipboard history, calculator) |
+| **Global (fan-out)** | No prefix match | Broadcast to all **non-prefixed** plugins, merged by score | Discoverable commands (apps, web search, system commands) |
+
+Prefixed plugins **do not** participate in the global fan-out. This is intentional — clipboard has thousands of entries, and you don't want those leaking into every search for "firefox". Prefixed plugins are opt-in via their prefix.
 
 ```rust
 fn prefix(&self) -> Option<&str> { Some("=") }
 ```
 
-When there's no prefix match, the query fans out to all plugins. Results are merged by score and truncated to 9.
-
-This mirrors Raycast's "root search vs. extension search" split, and Albert's `TriggerQueryHandler` vs `GlobalQueryHandler`. It's how `= 2+2` goes exclusively to the calculator while `firefox` queries all plugins.
+This mirrors Raycast's "root search vs. extension search" split. It's how `= 2+2` goes exclusively to the calculator while `firefox` queries all plugins.
 
 Why 9 results? Raycast uses 9. It's one result per digit key (for future keyboard shortcuts), and it's enough to be useful without being overwhelming.
+
+### Configuration
+
+Plugins receive a `serde_json::Value` config section during `init()`. Config is loaded from `~/.config/zap/config.toml` at startup. Each top-level TOML table maps to a plugin by ID:
+
+```toml
+[clipboard]
+max_age_days = 30
+
+[websearch]
+default = "ddg"
+```
+
+Missing file = empty config (no error). Parse error = warn + empty config. Missing section = empty object. TOML→JSON conversion happens in the Tauri layer so `zap-core` stays format-agnostic.
 
 ## Plugin Trait
 
@@ -59,10 +78,11 @@ pub trait Plugin: Send + Sync {
     fn description(&self) -> &str { "" }
     fn example(&self) -> Option<&str> { None }
     fn prefix(&self) -> Option<&str> { None }
-    fn init(&mut self) -> anyhow::Result<()> { Ok(()) }
+    fn init(&mut self, config: serde_json::Value) -> anyhow::Result<()> { Ok(()) }
     fn search(&self, query: &str) -> Vec<PluginResult>;
     fn execute(&self, result_id: &str) -> anyhow::Result<()>;
     fn refresh(&self) {}
+    fn hints(&self) -> Vec<KeyboardHint> { vec![] }
 }
 ```
 
@@ -155,15 +175,16 @@ User types "firefox"
     ▼
 PluginHost::search("firefox")
     │
-    ├─ No prefix match → fan out to all plugins
+    ├─ No prefix match → fan out to non-prefixed plugins only
     │  ├─ AppsPlugin::search("firefox") → [Firefox result, score: 85]
-    │  ├─ CalcPlugin::search("firefox") → [] (parse error, empty)
-    │  └─ ... other plugins ...
+    │  ├─ WebSearchPlugin::search("firefox") → [Search Google for 'firefox', score: 1]
+    │  ├─ CommandsPlugin::search("firefox") → [] (no match)
+    │  └─ (prefixed plugins like calc, clipboard are NOT queried)
     │
     ├─ Merge all results, sort by score, truncate to 9
     │
     ▼
-Frontend renders result list
+Frontend renders result list (Firefox app at top, Google fallback at bottom)
     │
 User presses Enter
     │
@@ -177,14 +198,14 @@ Frontend reads action.type == "Open"
 
 ## Built-in Help (`?`)
 
-Typing `?` lists all prefixed plugins. This is built into `PluginHost`, not a separate plugin — it reads `name()`, `description()`, and `example()` from each registered plugin. Prefix-less plugins (like apps) are excluded since they have no special syntax to teach.
+Typing `?` lists **all** registered plugins. This is built into `PluginHost`, not a separate plugin — it reads `name()`, `description()`, and `example()` from each registered plugin.
 
 Each result shows three lines for quick scanning:
 - **Title** — plugin name (e.g., "Calculator")
 - **Subtitle** — example command in monospace (e.g., `= 2+2`)
 - **Description** — what it does (e.g., "Inline calculator for math expressions")
 
-Typing `? calc` filters the list. Pressing Enter fills the plugin's prefix into the search bar via `Action::SetQuery`, so you can immediately start using it.
+Typing `? calc` filters the list. Pressing Enter fills in a `SetQuery` action — the plugin's prefix for prefixed plugins, or the example query for non-prefixed ones — so you can immediately start using it.
 
 The search placeholder reads "Search or type ? for help" to hint at this feature.
 
@@ -200,26 +221,59 @@ App discovery and launch. Indexes `.desktop` files on Linux, `.app` bundles on m
 
 ### `zap-plugin-calc`
 
-Inline calculator. Recursive descent parser for arithmetic expressions. Supports `+`, `-`, `*`, `/`, `%`, `^`/`**`, parentheses, unary minus, decimals, constants (`pi`, `e`), and functions (`sqrt`, `sin`, `cos`, `tan`, `log`, `ln`, `abs`, `floor`, `ceil`, `round`).
+Inline calculator. Recursive descent parser for arithmetic expressions. Supports `+`, `-`, `*`, `/`, `%`, `^`/`**`, parentheses, unary minus, decimals, constants (`pi`, `e`), functions, unit conversions, and timezone conversions.
 
 - Prefix: `=`
 - Action: `Copy` (copies the result)
 - Icon: none
-- Zero dependencies beyond `zap-core` and `anyhow`
+
+### `zap-plugin-clipboard`
+
+Clipboard history with background monitoring, SQLite storage, text and image support, pinning, and configurable retention.
+
+- Prefix: `cb `
+- Actions: `Paste`, `PasteImage` (keyboard hints for copy, delete, pin)
+- Config: `max_age_days`, `max_entries`, `poll_interval_ms`
+
+### `zap-plugin-websearch`
+
+Web search via keyword shortcuts. 15 built-in engines (Google, GitHub, YouTube, etc.). User can override or add engines via config.
+
+- Prefix: none (participates in global search)
+- Actions: `OpenUrl` (keyword match, score 100), `SetQuery` (keyword hint, score 50), `OpenUrl` (fallback, score 1)
+- Config: `default` (default engine keyword), `engines` (array of `{keyword, name, url}`)
 
 ## What We Learned from Other Launchers
 
-We researched Raycast, Alfred, Rofi, Albert, and Ulauncher before designing this system.
+We researched Raycast, Alfred, Rofi, Albert, Ulauncher, and Flow Launcher before designing this system.
 
-**Raycast** (the gold standard): Multiple view types (List, Grid, Detail, Form). Typed action components. Built-in icon enum with hundreds of icons. HUD + Toast feedback system. The key insight we took: actions are declared, not executed. The extension says "copy this" and the runtime does it.
+**Raycast** (the gold standard): Every extension declares a `commands` array — each command is a top-level searchable item with a title, keywords, and mode (view/no-view/menu-bar). Fuzzy search + usage-frequency ranking across the flat namespace. Users can assign aliases and hotkeys to any command. Multiple view types (List, Grid, Detail, Form). The key insight we took: actions are declared, not executed.
 
 **Alfred**: Script Filters output JSON with `arg` piped to workflow graph nodes. The `uid` field enables learning/ranking across sessions — we should adopt this. The `mods` object (alt/cmd/shift variants per result) is powerful and we'll want something similar.
 
-**Ulauncher**: Closest to our action model — `on_enter = CopyToClipboardAction(text)`. Clean and simple. Limited to flat list rendering.
+**Ulauncher**: Closest to our action model — `on_enter = CopyToClipboardAction(text)`. v6 introduces "triggers" with two types: input triggers (prefix + query) and launch triggers (fire immediately). Clean separation of "search" vs "do a thing".
 
-**Albert**: `TriggerQueryHandler` vs `GlobalQueryHandler` maps exactly to our prefix routing. Their `InputActionText` (Tab to refine) is worth stealing.
+**Albert**: `TriggerQueryHandler` vs `GlobalQueryHandler` maps exactly to our prefix routing. Their `InputActionText` (Tab to refine) is worth stealing. The dual-track design is what we adopted.
+
+**Flow Launcher**: Uses `*` wildcard for global plugins and named action keywords for others. Parallel execution. The `?` indicator for discoverability inspired our `?` help.
 
 **Rofi**: Stateless CGI-like model where the script re-invokes itself on each selection. Elegant but too limited for rich plugins. Pango markup in rows is a clever way to add formatting without new view types.
+
+### The commands evolution (future)
+
+The current model (plugins do their own fuzzy matching in `search()`) works well for plugins with small static item sets. But Raycast's insight is that a **commands abstraction** lets the host own the fuzzy matching centrally:
+
+```rust
+// Future: plugins declare static commands, PluginHost indexes them
+fn commands(&self) -> Vec<Command> {
+    vec![
+        Command { id: "lock", title: "Lock Screen", keywords: &["lock", "screen"] },
+        Command { id: "sleep", title: "Sleep", keywords: &["sleep", "suspend"] },
+    ]
+}
+```
+
+This becomes worth it when we have 50+ plugins and want centralized ranking, usage-frequency tracking, and user-assigned aliases. For now, plugins doing their own matching in `search()` is simpler and sufficient. Build the abstraction when the pain demands it.
 
 ## Where This Is Headed
 
