@@ -127,6 +127,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn format_decimal() {
         assert_eq!(format_number(3.14), "3.14");
         assert_eq!(format_number(std::f64::consts::PI * 2.0), "6.283185307");

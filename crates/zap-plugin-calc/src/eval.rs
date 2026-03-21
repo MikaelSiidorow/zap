@@ -332,6 +332,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn decimals() {
         assert!(approx_eq(eval("3.14 * 2"), 6.28));
         assert!(approx_eq(eval("0.1 + 0.2"), 0.3));
