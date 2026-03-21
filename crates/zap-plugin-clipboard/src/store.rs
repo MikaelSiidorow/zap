@@ -31,39 +31,54 @@ pub fn open_memory_db() -> Result<Connection> {
     Ok(conn)
 }
 
+/// Check whether a column exists on a table (safe against partial migrations).
+fn has_column(conn: &Connection, table: &str, column: &str) -> bool {
+    let mut stmt = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .unwrap();
+    let columns: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect();
+    columns.iter().any(|c| c == column)
+}
+
 pub fn migrate(conn: &Connection) -> Result<()> {
     let version: u32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
 
     if version < 1 {
+        // Fresh install: create table with all columns (v2 schema)
         conn.execute_batch(
-            "CREATE TABLE clipboard_entries (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                content     TEXT NOT NULL,
-                hash        TEXT NOT NULL,
-                pinned      INTEGER NOT NULL DEFAULT 0,
-                created_at  INTEGER NOT NULL,
-                last_used   INTEGER NOT NULL,
-                use_count   INTEGER NOT NULL DEFAULT 0
+            "CREATE TABLE IF NOT EXISTS clipboard_entries (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                content      TEXT NOT NULL,
+                hash         TEXT NOT NULL,
+                pinned       INTEGER NOT NULL DEFAULT 0,
+                created_at   INTEGER NOT NULL,
+                last_used    INTEGER NOT NULL,
+                use_count    INTEGER NOT NULL DEFAULT 0,
+                content_type TEXT NOT NULL DEFAULT 'text',
+                blob_path    TEXT
             );
-            CREATE UNIQUE INDEX idx_hash ON clipboard_entries(hash);
-            CREATE INDEX idx_created ON clipboard_entries(created_at);",
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_hash ON clipboard_entries(hash);
+            CREATE INDEX IF NOT EXISTS idx_created ON clipboard_entries(created_at);",
         )?;
     }
 
-    if version < 2 {
-        // Add content_type and blob_path columns for image support
-        if version >= 1 {
-            // Only ALTER if table already existed from v1
-            conn.execute_batch(
-                "ALTER TABLE clipboard_entries ADD COLUMN content_type TEXT NOT NULL DEFAULT 'text';
-                 ALTER TABLE clipboard_entries ADD COLUMN blob_path TEXT;",
+    if version >= 1 && version < 2 {
+        // Upgrade from v1: add columns if they don't already exist
+        // (handles partial migrations from a previous crash)
+        if !has_column(conn, "clipboard_entries", "content_type") {
+            conn.execute(
+                "ALTER TABLE clipboard_entries ADD COLUMN content_type TEXT NOT NULL DEFAULT 'text'",
+                [],
             )?;
-        } else {
-            // Fresh install: columns already part of v1 CREATE above won't exist,
-            // so add them now (table was just created in v<1 block above)
-            conn.execute_batch(
-                "ALTER TABLE clipboard_entries ADD COLUMN content_type TEXT NOT NULL DEFAULT 'text';
-                 ALTER TABLE clipboard_entries ADD COLUMN blob_path TEXT;",
+        }
+        if !has_column(conn, "clipboard_entries", "blob_path") {
+            conn.execute(
+                "ALTER TABLE clipboard_entries ADD COLUMN blob_path TEXT",
+                [],
             )?;
         }
     }
@@ -362,6 +377,70 @@ mod tests {
         // Pinned entry + 2 most recent unpinned = 3
         assert_eq!(entries.len(), 3);
         assert!(entries[0].pinned);
+    }
+
+    #[test]
+    fn test_migrate_v1_to_v2() {
+        // Simulate a v1 database
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE clipboard_entries (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                content     TEXT NOT NULL,
+                hash        TEXT NOT NULL,
+                pinned      INTEGER NOT NULL DEFAULT 0,
+                created_at  INTEGER NOT NULL,
+                last_used   INTEGER NOT NULL,
+                use_count   INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE UNIQUE INDEX idx_hash ON clipboard_entries(hash);
+            PRAGMA user_version = 1;",
+        )
+        .unwrap();
+        // Insert a v1 entry
+        conn.execute(
+            "INSERT INTO clipboard_entries (content, hash, pinned, created_at, last_used, use_count) VALUES ('hello', 'h1', 0, 1, 1, 1)",
+            [],
+        ).unwrap();
+
+        // Migrate to v2
+        migrate(&conn).unwrap();
+        let version: u32 = conn
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
+
+        // Old data is preserved with default content_type
+        let entries = recent_entries(&conn, 10).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content_type, "text");
+        assert!(entries[0].blob_path.is_none());
+    }
+
+    #[test]
+    fn test_migrate_partial_v2_recovery() {
+        // Simulate a crashed v1→v2 migration: content_type added but not blob_path
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE clipboard_entries (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                content     TEXT NOT NULL,
+                hash        TEXT NOT NULL,
+                pinned      INTEGER NOT NULL DEFAULT 0,
+                created_at  INTEGER NOT NULL,
+                last_used   INTEGER NOT NULL,
+                use_count   INTEGER NOT NULL DEFAULT 0,
+                content_type TEXT NOT NULL DEFAULT 'text'
+            );
+            CREATE UNIQUE INDEX idx_hash ON clipboard_entries(hash);
+            PRAGMA user_version = 1;",
+        )
+        .unwrap();
+
+        // Migrate should succeed, adding only the missing column
+        migrate(&conn).unwrap();
+        assert!(has_column(&conn, "clipboard_entries", "blob_path"));
+        assert!(has_column(&conn, "clipboard_entries", "content_type"));
     }
 
     #[test]
