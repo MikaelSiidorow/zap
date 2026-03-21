@@ -1,6 +1,6 @@
 mod eval;
 
-use zap_core::{Action, Plugin, PluginResult};
+use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
 
 pub struct CalcPlugin;
 
@@ -52,6 +52,13 @@ impl Plugin for CalcPlugin {
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
         // Not called — calc results use Action::Copy, handled by the runtime
         Ok(())
+    }
+
+    fn hints(&self) -> Vec<KeyboardHint> {
+        vec![KeyboardHint {
+            key: "Enter".into(),
+            label: "Copy result".into(),
+        }]
     }
 }
 

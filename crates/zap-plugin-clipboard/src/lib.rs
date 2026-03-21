@@ -4,7 +4,7 @@ pub mod store;
 
 use monitor::{spawn_monitor, ClipboardConfig};
 use std::path::PathBuf;
-use zap_core::{Plugin, PluginResult};
+use zap_core::{KeyboardHint, Plugin, PluginResult};
 
 pub struct ClipboardPlugin {
     db_path: PathBuf,
@@ -92,5 +92,31 @@ impl Plugin for ClipboardPlugin {
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
         // Primary action is Paste/PasteImage, handled by the runtime
         Ok(())
+    }
+
+    fn hints(&self) -> Vec<KeyboardHint> {
+        #[cfg(target_os = "macos")]
+        let (delete_key, mod_key) = ("Cmd+⌫", "Cmd");
+        #[cfg(not(target_os = "macos"))]
+        let (delete_key, mod_key) = ("Del", "Ctrl");
+
+        vec![
+            KeyboardHint {
+                key: "Enter".into(),
+                label: "Paste".into(),
+            },
+            KeyboardHint {
+                key: "Shift+Enter".into(),
+                label: "Copy".into(),
+            },
+            KeyboardHint {
+                key: delete_key.into(),
+                label: "Delete".into(),
+            },
+            KeyboardHint {
+                key: format!("{mod_key}+P"),
+                label: "Pin".into(),
+            },
+        ]
     }
 }

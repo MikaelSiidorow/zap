@@ -36,6 +36,12 @@ pub struct PluginResult {
     pub action: Action,
 }
 
+#[derive(Clone, Serialize)]
+pub struct KeyboardHint {
+    pub key: String,
+    pub label: String,
+}
+
 pub trait Plugin: Send + Sync {
     fn id(&self) -> &str;
     fn name(&self) -> &str;
@@ -55,6 +61,9 @@ pub trait Plugin: Send + Sync {
     /// Called only for results with Action::Open.
     fn execute(&self, result_id: &str) -> anyhow::Result<()>;
     fn refresh(&self) {}
+    fn hints(&self) -> Vec<KeyboardHint> {
+        vec![]
+    }
 }
 
 pub struct PluginHost {
@@ -148,6 +157,14 @@ impl PluginHost {
             .find(|p| p.id() == plugin_id)
             .ok_or_else(|| anyhow::anyhow!("plugin '{}' not found", plugin_id))?;
         plugin.execute(result_id)
+    }
+
+    pub fn plugin_hints(&self, plugin_id: &str) -> Vec<KeyboardHint> {
+        self.plugins
+            .iter()
+            .find(|p| p.id() == plugin_id)
+            .map(|p| p.hints())
+            .unwrap_or_default()
     }
 
     pub fn refresh_all(&self) {

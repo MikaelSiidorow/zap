@@ -8,6 +8,11 @@ export type Action =
   | { type: 'Paste'; content: string }
   | { type: 'PasteImage'; path: string };
 
+export interface KeyboardHint {
+  key: string;
+  label: string;
+}
+
 export interface PluginResult {
   id: string;
   plugin_id: string;
@@ -22,6 +27,10 @@ export interface PluginResult {
 
 export async function search(query: string): Promise<PluginResult[]> {
   return invoke('search', { query });
+}
+
+export async function pluginHints(pluginId: string): Promise<KeyboardHint[]> {
+  return invoke('plugin_hints', { pluginId });
 }
 
 export async function execute(pluginId: string, resultId: string): Promise<void> {

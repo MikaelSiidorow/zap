@@ -1,10 +1,15 @@
 use std::path::PathBuf;
 use tauri::Manager;
-use zap_core::{PluginHost, PluginResult};
+use zap_core::{KeyboardHint, PluginHost, PluginResult};
 
 #[tauri::command]
 pub fn search(query: String, state: tauri::State<'_, PluginHost>) -> Vec<PluginResult> {
     state.search(&query)
+}
+
+#[tauri::command]
+pub fn plugin_hints(plugin_id: String, state: tauri::State<'_, PluginHost>) -> Vec<KeyboardHint> {
+    state.plugin_hints(&plugin_id)
 }
 
 #[tauri::command]

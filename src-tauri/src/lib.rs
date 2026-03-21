@@ -252,6 +252,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::search,
+            commands::plugin_hints,
             commands::execute,
             commands::copy_to_clipboard,
             commands::hide_window,

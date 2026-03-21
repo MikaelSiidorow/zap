@@ -3,13 +3,14 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, type PluginResult } from '$lib/tauri';
-  import { handleKey, getHints } from '$lib/keys';
+  import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, pluginHints, type PluginResult, type KeyboardHint } from '$lib/tauri';
+  import { handleKey } from '$lib/keys';
 
   let query = $state('');
   let results = $state<PluginResult[]>([]);
   let selectedIndex = $state(0);
   let feedback = $state<string | null>(null);
+  let hints = $state<KeyboardHint[]>([]);
   let unlisten: (() => void) | undefined;
 
   $effect(() => {
@@ -20,6 +21,17 @@
         selectedIndex = 0;
       }
     });
+  });
+
+  // Fetch hints when active plugin changes
+  let activePluginId = $derived(results[0]?.plugin_id ?? null);
+  $effect(() => {
+    const pid = activePluginId;
+    if (pid) {
+      pluginHints(pid).then((h) => { hints = h; });
+    } else {
+      hints = [];
+    }
   });
 
   onMount(async () => {
@@ -157,9 +169,9 @@
     {:else if results.length > 0}
       <div class="divider"></div>
       <ResultList {results} {selectedIndex} onselect={(i) => activateResult(results[i])} />
-      {#if getHints(results[0]?.plugin_id).length > 0}
+      {#if hints.length > 0}
         <div class="hints">
-          {#each getHints(results[0]?.plugin_id) as hint}
+          {#each hints as hint}
             <span><kbd>{hint.key}</kbd> {hint.label}</span>
           {/each}
         </div>
