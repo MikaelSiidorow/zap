@@ -1,0 +1,23 @@
+# Changelog
+
+## [0.1.1](https://github.com/MikaelSiidorow/zap/compare/v0.1.0...v0.1.1) (2026-03-21)
+
+
+### Features
+
+* add built-in ? help showing prefixed plugins ([6579771](https://github.com/MikaelSiidorow/zap/commit/657977136086fb846011d9a129e0b4874cb5d168))
+* add calculator plugin (zap-plugin-calc) ([88b3432](https://github.com/MikaelSiidorow/zap/commit/88b3432175d993611e6958a14c5aa053e2053aa4))
+* add clipboard history plugin (zap-plugin-clipboard) ([dc983d5](https://github.com/MikaelSiidorow/zap/commit/dc983d5313f58cc24d78a085cbb02b285814b904))
+* add image clipboard support, enigo paste, and Shift+Enter copy ([a2780e7](https://github.com/MikaelSiidorow/zap/commit/a2780e7e4327abaf0fe3ec3ad3a6eae9dc4fd4d6))
+* add keyboard shortcut hints footer for plugins ([6dea759](https://github.com/MikaelSiidorow/zap/commit/6dea75984917faee77fe3ff6407b0598099d2202))
+* add timezone conversion to calc plugin ([9faf001](https://github.com/MikaelSiidorow/zap/commit/9faf0019946538e59e5fe82d2dcae93a23cf6f72))
+* add typed Action enum to plugin results (Raycast-inspired) ([0bbc133](https://github.com/MikaelSiidorow/zap/commit/0bbc1335c3418c9a0a8acb729d84375d81e9acc4))
+* enable colored log output for env_logger ([93e3c19](https://github.com/MikaelSiidorow/zap/commit/93e3c196b030bd29bf9d360fff9b91f9b3f93310))
+* phase 0 app launcher with fuzzy search, hotkey toggle, and system tray ([126cd68](https://github.com/MikaelSiidorow/zap/commit/126cd68cd79c0e4ae4224b226eb417b701fcb4d9))
+* plugin-defined keyboard shortcut hints ([606a6de](https://github.com/MikaelSiidorow/zap/commit/606a6de2b4a8d6f9e46722fe15fbde4c76ac4f9a))
+
+
+### Bug Fixes
+
+* keep clipboard alive longer to prevent X11 ownership loss ([7c27eee](https://github.com/MikaelSiidorow/zap/commit/7c27eee087a236ae8338244d246aac1ce765f111))
+* resolve CI failures and update actions to latest versions ([23007ed](https://github.com/MikaelSiidorow/zap/commit/23007ed81fae0167d78b7484b73b9e09b6cc1fee))
