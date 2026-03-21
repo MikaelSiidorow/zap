@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/MikaelSiidorow/zap/compare/v0.1.2...v0.1.3) (2026-03-21)
+
+
+### Features
+
+* add Windows build support ([cb50203](https://github.com/MikaelSiidorow/zap/commit/cb50203b5cc1f35b2eaa8b735f6302598e9b5330))
+
 ## [0.1.2](https://github.com/MikaelSiidorow/zap/compare/v0.1.1...v0.1.2) (2026-03-21)
 
 
