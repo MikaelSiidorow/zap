@@ -17,6 +17,9 @@ pub enum Action {
     /// Paste text into the frontmost application.
     /// Runtime: writes to clipboard, hides window, simulates Ctrl+V / Cmd+V.
     Paste { content: String },
+    /// Paste an image (from a file path) into the frontmost application.
+    /// Runtime: loads image into clipboard, hides window, simulates Ctrl+V / Cmd+V.
+    PasteImage { path: String },
 }
 
 #[derive(Clone, Serialize)]

@@ -1,4 +1,4 @@
-use crate::store::{enforce_retention, open_db, upsert_entry};
+use crate::store::{enforce_retention, open_db, upsert_entry, upsert_image_entry};
 use log::{debug, warn};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
@@ -26,6 +26,12 @@ pub fn sha256_hex(text: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+fn sha256_bytes(data: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    format!("{:x}", hasher.finalize())
+}
+
 fn looks_sensitive(text: &str) -> bool {
     let trimmed = text.trim();
 
@@ -50,7 +56,10 @@ fn looks_sensitive(text: &str) -> bool {
     false
 }
 
-pub fn spawn_monitor(db_path: PathBuf, config: ClipboardConfig) {
+/// 10 MB limit for RGBA image data
+const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+
+pub fn spawn_monitor(db_path: PathBuf, blob_dir: PathBuf, config: ClipboardConfig) {
     std::thread::spawn(move || {
         let conn = match open_db(&db_path) {
             Ok(c) => c,
@@ -66,25 +75,84 @@ pub fn spawn_monitor(db_path: PathBuf, config: ClipboardConfig) {
             let Ok(mut clipboard) = arboard::Clipboard::new() else {
                 continue;
             };
-            let Ok(text) = clipboard.get_text() else {
-                continue;
-            };
-            if text.trim().is_empty() {
-                continue;
+
+            // Try text first
+            if let Ok(text) = clipboard.get_text() {
+                if !text.trim().is_empty() {
+                    let hash = sha256_hex(&text);
+                    if hash != last_hash {
+                        last_hash = hash.clone();
+                        if looks_sensitive(&text) {
+                            debug!("clipboard monitor: skipping sensitive content");
+                            continue;
+                        }
+                        let _ = upsert_entry(&conn, &text, &hash);
+                        cleanup_blobs(&conn, &config);
+                        continue;
+                    }
+                    continue;
+                }
             }
-            let hash = sha256_hex(&text);
-            if hash == last_hash {
-                continue;
+
+            // Try image
+            if let Ok(img) = clipboard.get_image() {
+                let rgba_bytes = img.bytes.as_ref();
+                if rgba_bytes.len() > MAX_IMAGE_BYTES {
+                    debug!("clipboard monitor: skipping large image ({}MB)", rgba_bytes.len() / 1024 / 1024);
+                    continue;
+                }
+                let hash = sha256_bytes(rgba_bytes);
+                if hash == last_hash {
+                    continue;
+                }
+                last_hash = hash.clone();
+
+                // Use first 16 chars of hash for filename
+                let filename = format!("{}.png", &hash[..16]);
+                let blob_path = blob_dir.join(&filename);
+
+                if !blob_path.exists() {
+                    if let Some(img_buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+                        img.width as u32,
+                        img.height as u32,
+                        rgba_bytes.to_vec(),
+                    ) {
+                        if let Err(e) = img_buf.save(&blob_path) {
+                            warn!("clipboard monitor: failed to save PNG: {e}");
+                            continue;
+                        }
+                    } else {
+                        warn!("clipboard monitor: failed to create ImageBuffer");
+                        continue;
+                    }
+                }
+
+                let content = format!("Image ({}x{})", img.width, img.height);
+                let _ = upsert_image_entry(
+                    &conn,
+                    &content,
+                    &hash,
+                    blob_path.to_str().unwrap_or_default(),
+                );
+                cleanup_blobs(&conn, &config);
             }
-            last_hash = hash.clone();
-            if looks_sensitive(&text) {
-                debug!("clipboard monitor: skipping sensitive content");
-                continue;
-            }
-            let _ = upsert_entry(&conn, &text, &hash);
-            let _ = enforce_retention(&conn, config.max_age_days, config.max_entries);
         }
     });
+}
+
+fn cleanup_blobs(conn: &rusqlite::Connection, config: &ClipboardConfig) {
+    match enforce_retention(conn, config.max_age_days, config.max_entries) {
+        Ok(blob_paths) => {
+            for path in blob_paths {
+                if let Err(e) = std::fs::remove_file(&path) {
+                    debug!("clipboard monitor: failed to remove blob {path}: {e}");
+                }
+            }
+        }
+        Err(e) => {
+            debug!("clipboard monitor: retention error: {e}");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -98,6 +166,14 @@ mod tests {
         // Deterministic
         assert_eq!(hash, sha256_hex("hello"));
         assert_ne!(hash, sha256_hex("world"));
+    }
+
+    #[test]
+    fn test_sha256_bytes() {
+        let hash = sha256_bytes(b"hello");
+        assert_eq!(hash.len(), 64);
+        assert_eq!(hash, sha256_bytes(b"hello"));
+        assert_ne!(hash, sha256_bytes(b"world"));
     }
 
     #[test]

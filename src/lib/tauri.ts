@@ -5,7 +5,8 @@ export type Action =
   | { type: 'Copy'; content: string }
   | { type: 'OpenUrl'; url: string }
   | { type: 'SetQuery'; query: string }
-  | { type: 'Paste'; content: string };
+  | { type: 'Paste'; content: string }
+  | { type: 'PasteImage'; path: string };
 
 export interface PluginResult {
   id: string;
@@ -37,6 +38,14 @@ export async function hideWindow(): Promise<void> {
 
 export async function pasteToFrontmost(text: string): Promise<void> {
   return invoke('paste_to_frontmost', { text });
+}
+
+export async function pasteImageToFrontmost(path: string): Promise<void> {
+  return invoke('paste_image_to_frontmost', { path });
+}
+
+export async function copyImageToClipboard(path: string): Promise<void> {
+  return invoke('copy_image_to_clipboard', { path });
 }
 
 export async function clipboardDelete(id: number): Promise<void> {

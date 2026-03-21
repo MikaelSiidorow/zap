@@ -44,18 +44,33 @@ fn subtitle_for(entry: &ClipboardEntry) -> String {
 }
 
 fn entry_to_result(entry: &ClipboardEntry, plugin_id: &str) -> PluginResult {
-    PluginResult {
-        id: entry.id.to_string(),
-        plugin_id: plugin_id.to_string(),
-        title: first_line(&entry.content, 80),
-        subtitle: Some(subtitle_for(entry)),
-        description: None,
-        icon_path: None,
-        score: 0,
-        match_indices: vec![],
-        action: Action::Paste {
-            content: entry.content.clone(),
-        },
+    if entry.content_type == "image" {
+        let blob_path = entry.blob_path.clone().unwrap_or_default();
+        PluginResult {
+            id: entry.id.to_string(),
+            plugin_id: plugin_id.to_string(),
+            title: first_line(&entry.content, 80),
+            subtitle: Some(subtitle_for(entry)),
+            description: None,
+            icon_path: Some(blob_path.clone()),
+            score: 0,
+            match_indices: vec![],
+            action: Action::PasteImage { path: blob_path },
+        }
+    } else {
+        PluginResult {
+            id: entry.id.to_string(),
+            plugin_id: plugin_id.to_string(),
+            title: first_line(&entry.content, 80),
+            subtitle: Some(subtitle_for(entry)),
+            description: None,
+            icon_path: None,
+            score: 0,
+            match_indices: vec![],
+            action: Action::Paste {
+                content: entry.content.clone(),
+            },
+        }
     }
 }
 
@@ -165,6 +180,22 @@ mod tests {
         match &results[0].action {
             Action::Paste { content } => assert_eq!(content, "paste me"),
             _ => panic!("expected Paste action"),
+        }
+    }
+
+    #[test]
+    fn test_image_entry_returns_paste_image_action() {
+        let conn = open_memory_db().unwrap();
+        crate::store::upsert_image_entry(&conn, "Image (800x600)", "imghash1", "/tmp/blob.png")
+            .unwrap();
+
+        let results = search(&conn, "", "clipboard");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Image (800x600)");
+        assert_eq!(results[0].icon_path.as_deref(), Some("/tmp/blob.png"));
+        match &results[0].action {
+            Action::PasteImage { path } => assert_eq!(path, "/tmp/blob.png"),
+            _ => panic!("expected PasteImage action"),
         }
     }
 }

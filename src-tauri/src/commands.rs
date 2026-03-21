@@ -39,6 +39,27 @@ fn clipboard_db_path() -> PathBuf {
         .join("clipboard.db")
 }
 
+fn simulate_paste() {
+    use enigo::{Direction, Enigo, Key, Keyboard, Settings};
+    let Ok(mut enigo) = Enigo::new(&Settings::default()) else {
+        return;
+    };
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = enigo.key(Key::Meta, Direction::Press);
+        let _ = enigo.key(Key::Unicode('v'), Direction::Click);
+        let _ = enigo.key(Key::Meta, Direction::Release);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = enigo.key(Key::Control, Direction::Press);
+        let _ = enigo.key(Key::Unicode('v'), Direction::Click);
+        let _ = enigo.key(Key::Control, Direction::Release);
+    }
+}
+
 #[tauri::command]
 pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), String> {
     arboard::Clipboard::new()
@@ -54,35 +75,57 @@ pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), Str
     Ok(())
 }
 
-fn simulate_paste() {
-    #[cfg(target_os = "linux")]
-    {
-        // Try xdotool first (X11), fall back to wtype (Wayland)
-        let status = std::process::Command::new("xdotool")
-            .args(["key", "ctrl+v"])
-            .status();
-        if status.is_err() || !status.unwrap().success() {
-            let _ = std::process::Command::new("wtype")
-                .args(["-M", "ctrl", "-P", "v", "-p", "v", "-m", "ctrl"])
-                .status();
-        }
+#[tauri::command]
+pub fn paste_image_to_frontmost(path: String, app: tauri::AppHandle) -> Result<(), String> {
+    // Read PNG file and set as clipboard image
+    let img = image::open(&path).map_err(|e| e.to_string())?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    let img_data = arboard::ImageData {
+        width: width as usize,
+        height: height as usize,
+        bytes: std::borrow::Cow::Owned(rgba.into_raw()),
+    };
+    arboard::Clipboard::new()
+        .and_then(|mut c| c.set_image(img_data))
+        .map_err(|e| e.to_string())?;
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
     }
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("osascript")
-            .args([
-                "-e",
-                "tell application \"System Events\" to keystroke \"v\" using command down",
-            ])
-            .status();
-    }
+    std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        simulate_paste();
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
+    let img = image::open(&path).map_err(|e| e.to_string())?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    let img_data = arboard::ImageData {
+        width: width as usize,
+        height: height as usize,
+        bytes: std::borrow::Cow::Owned(rgba.into_raw()),
+    };
+    arboard::Clipboard::new()
+        .and_then(|mut c| c.set_image(img_data))
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn clipboard_delete(id: i64) -> Result<(), String> {
     let db_path = clipboard_db_path();
     let conn = zap_plugin_clipboard::store::open_db(&db_path).map_err(|e| e.to_string())?;
-    zap_plugin_clipboard::store::delete_entry(&conn, id).map_err(|e| e.to_string())
+    let blob_path =
+        zap_plugin_clipboard::store::delete_entry(&conn, id).map_err(|e| e.to_string())?;
+    // Clean up blob file if this was an image entry
+    if let Some(path) = blob_path {
+        let _ = std::fs::remove_file(path);
+    }
+    Ok(())
 }
 
 #[tauri::command]

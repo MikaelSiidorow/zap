@@ -8,6 +8,7 @@ use zap_core::{Plugin, PluginResult};
 
 pub struct ClipboardPlugin {
     db_path: PathBuf,
+    blob_dir: PathBuf,
     config: ClipboardConfig,
 }
 
@@ -18,6 +19,7 @@ impl ClipboardPlugin {
             .join("zap");
         Self {
             db_path: data_dir.join("clipboard.db"),
+            blob_dir: data_dir.join("clipboard_blobs"),
             config: ClipboardConfig::default(),
         }
     }
@@ -59,12 +61,16 @@ impl Plugin for ClipboardPlugin {
         if let Some(parent) = self.db_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+        // Ensure blob directory exists
+        std::fs::create_dir_all(&self.blob_dir)?;
+
         // Open DB and run migrations to verify schema
         let _conn = store::open_db(&self.db_path)?;
 
         // Spawn background monitor
         spawn_monitor(
             self.db_path.clone(),
+            self.blob_dir.clone(),
             ClipboardConfig {
                 max_age_days: self.config.max_age_days,
                 max_entries: self.config.max_entries,
@@ -84,7 +90,7 @@ impl Plugin for ClipboardPlugin {
     }
 
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
-        // Primary action is Paste, handled by the runtime
+        // Primary action is Paste/PasteImage, handled by the runtime
         Ok(())
     }
 }

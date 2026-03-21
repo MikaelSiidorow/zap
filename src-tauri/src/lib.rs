@@ -257,6 +257,8 @@ pub fn run() {
             commands::copy_to_clipboard,
             commands::hide_window,
             commands::paste_to_frontmost,
+            commands::paste_image_to_frontmost,
+            commands::copy_image_to_clipboard,
             commands::clipboard_delete,
             commands::clipboard_toggle_pin
         ])

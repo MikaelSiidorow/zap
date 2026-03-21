@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, clipboardDelete, clipboardTogglePin, type PluginResult } from '$lib/tauri';
+  import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, type PluginResult } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
@@ -58,6 +58,10 @@
         await pasteToFrontmost(result.action.content);
         reset();
         break;
+      case 'PasteImage':
+        await pasteImageToFrontmost(result.action.path);
+        reset();
+        break;
       case 'SetQuery':
         query = result.action.query;
         break;
@@ -84,10 +88,28 @@
     }
   }
 
+  async function copyResult(result: PluginResult) {
+    switch (result.action.type) {
+      case 'Paste':
+      case 'Copy':
+        await copyToClipboard(result.action.content);
+        feedback = 'Copied to clipboard';
+        setTimeout(hide, 600);
+        break;
+      case 'PasteImage':
+        await copyImageToClipboard(result.action.path);
+        feedback = 'Image copied to clipboard';
+        setTimeout(hide, 600);
+        break;
+      default:
+        break;
+    }
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     const selectedResult = results[selectedIndex] ?? null;
     const pluginId = selectedResult?.plugin_id ?? null;
-    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, pluginId);
+    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, event.shiftKey, pluginId);
     if (!action) return;
 
     event.preventDefault();
@@ -98,6 +120,11 @@
       case 'select':
         if (results[action.index]) {
           activateResult(results[action.index]);
+        }
+        break;
+      case 'copy':
+        if (results[action.index]) {
+          copyResult(results[action.index]);
         }
         break;
       case 'hide':

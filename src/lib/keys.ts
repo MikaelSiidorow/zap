@@ -1,6 +1,7 @@
 export type KeyAction =
   | { type: 'move'; index: number }
   | { type: 'select'; index: number }
+  | { type: 'copy'; index: number }
   | { type: 'hide' }
   | { type: 'delete'; index: number }
   | { type: 'toggle_pin'; index: number }
@@ -12,15 +13,20 @@ export function handleKey(
   resultCount: number,
   ctrlKey: boolean,
   metaKey: boolean,
+  shiftKey: boolean,
   pluginId: string | null,
 ): KeyAction {
   // Clipboard-specific shortcuts
   if (pluginId === 'clipboard' && resultCount > 0) {
-    if (key === 'Delete' || key === 'Backspace') {
+    // Delete: Delete key on Linux/Windows, Cmd+Backspace on Mac
+    if (key === 'Delete' || (key === 'Backspace' && metaKey)) {
       return { type: 'delete', index: selectedIndex };
     }
     if (key === 'p' && (ctrlKey || metaKey)) {
       return { type: 'toggle_pin', index: selectedIndex };
+    }
+    if (key === 'Enter' && shiftKey) {
+      return { type: 'copy', index: selectedIndex };
     }
   }
 

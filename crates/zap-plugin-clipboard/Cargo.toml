@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 zap-core = { path = "../zap-core" }
-arboard = "3"
 rusqlite = { version = "0.32", features = ["bundled"] }
 nucleo-matcher = "0.3"
 dirs = "6"
@@ -13,3 +12,10 @@ anyhow = "1"
 log = "0.4"
 sha2 = "0.10"
 time = { version = "0.3", features = ["formatting"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+arboard = { version = "3", features = ["wayland-data-control"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+arboard = "3"
