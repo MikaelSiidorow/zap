@@ -8,11 +8,25 @@ fn main() {
     zap_lib::run();
 }
 
+#[cfg(unix)]
 fn toggle_via_socket() {
     use std::os::unix::net::UnixStream;
 
     let path = zap_lib::socket_path();
     match UnixStream::connect(&path) {
+        Ok(_) => println!("Toggle signal sent"),
+        Err(e) => {
+            eprintln!("Failed to connect to zap: {e}. Is it running?");
+            std::process::exit(1);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn toggle_via_socket() {
+    use std::net::TcpStream;
+
+    match TcpStream::connect(("127.0.0.1", zap_lib::IPC_PORT)) {
         Ok(_) => println!("Toggle signal sent"),
         Err(e) => {
             eprintln!("Failed to connect to zap: {e}. Is it running?");
