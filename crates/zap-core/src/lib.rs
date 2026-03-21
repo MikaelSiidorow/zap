@@ -113,9 +113,13 @@ impl PluginHost {
             return plugin.search(sub_query);
         }
 
-        // No prefix → fan out to all plugins, merge by score
-        let mut results: Vec<PluginResult> =
-            self.plugins.iter().flat_map(|p| p.search(query)).collect();
+        // No prefix → fan out to non-prefixed plugins, merge by score
+        let mut results: Vec<PluginResult> = self
+            .plugins
+            .iter()
+            .filter(|p| p.prefix().is_none())
+            .flat_map(|p| p.search(query))
+            .collect();
 
         results.sort_by(|a, b| b.score.cmp(&a.score));
         results.truncate(9);
@@ -126,20 +130,29 @@ impl PluginHost {
         let filter_lower = filter.to_lowercase();
         self.plugins
             .iter()
-            .filter(|p| p.prefix().is_some())
             .filter(|p| {
                 filter.is_empty()
                     || p.name().to_lowercase().contains(&filter_lower)
                     || p.id().to_lowercase().contains(&filter_lower)
             })
             .map(|p| {
-                let prefix = p.prefix().unwrap();
                 let subtitle = p.example().map(String::from);
                 let desc = p.description();
                 let description = if desc.is_empty() {
                     None
                 } else {
                     Some(desc.to_string())
+                };
+                let action = if let Some(prefix) = p.prefix() {
+                    Action::SetQuery {
+                        query: prefix.to_string(),
+                    }
+                } else if let Some(example) = p.example() {
+                    Action::SetQuery {
+                        query: example.to_string(),
+                    }
+                } else {
+                    Action::default()
                 };
                 PluginResult {
                     id: p.id().into(),
@@ -150,9 +163,7 @@ impl PluginHost {
                     icon_path: None,
                     score: 0,
                     match_indices: vec![],
-                    action: Action::SetQuery {
-                        query: prefix.to_string(),
-                    },
+                    action,
                 }
             })
             .collect()
