@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/MikaelSiidorow/zap/compare/v0.1.4...v0.1.5) (2026-03-21)
+
+
+### Features
+
+* add system commands plugin for lock, sleep, restart, shutdown, logout, and empty trash ([fa16f6c](https://github.com/MikaelSiidorow/zap/commit/fa16f6c5ce367d5368a8617864fe53dd7d80958e))
+
 ## [0.1.4](https://github.com/MikaelSiidorow/zap/compare/v0.1.3...v0.1.4) (2026-03-21)
 
 
