@@ -4,7 +4,7 @@
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
   import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, type PluginResult } from '$lib/tauri';
-  import { handleKey } from '$lib/keys';
+  import { handleKey, getHints } from '$lib/keys';
 
   let query = $state('');
   let results = $state<PluginResult[]>([]);
@@ -157,6 +157,13 @@
     {:else if results.length > 0}
       <div class="divider"></div>
       <ResultList {results} {selectedIndex} onselect={(i) => activateResult(results[i])} />
+      {#if getHints(results[0]?.plugin_id).length > 0}
+        <div class="hints">
+          {#each getHints(results[0]?.plugin_id) as hint}
+            <span><kbd>{hint.key}</kbd> {hint.label}</span>
+          {/each}
+        </div>
+      {/if}
     {/if}
   </main>
 </div>
@@ -191,5 +198,24 @@
     font-size: 14px;
     color: var(--text-muted);
     text-align: center;
+  }
+
+  .hints {
+    display: flex;
+    gap: 16px;
+    padding: 6px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .hints kbd {
+    font-family: inherit;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary, rgba(255, 255, 255, 0.06));
+    margin-right: 4px;
   }
 </style>

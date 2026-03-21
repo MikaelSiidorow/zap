@@ -7,6 +7,30 @@ export type KeyAction =
   | { type: 'toggle_pin'; index: number }
   | null;
 
+export interface KeyboardHint {
+  key: string;
+  label: string;
+}
+
+const isMac =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+const mod = isMac ? 'Cmd' : 'Ctrl';
+
+const pluginHints: Record<string, KeyboardHint[]> = {
+  clipboard: [
+    { key: 'Enter', label: 'Paste' },
+    { key: 'Shift+Enter', label: 'Copy' },
+    { key: isMac ? 'Cmd+⌫' : 'Del', label: 'Delete' },
+    { key: `${mod}+P`, label: 'Pin' },
+  ],
+};
+
+export function getHints(pluginId: string | null): KeyboardHint[] {
+  if (!pluginId) return [];
+  return pluginHints[pluginId] ?? [];
+}
+
 export function handleKey(
   key: string,
   selectedIndex: number,
