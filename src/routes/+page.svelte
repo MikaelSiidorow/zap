@@ -3,11 +3,12 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, copyToClipboard, hideWindow, openUrl, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, pluginHints, type PluginResult, type KeyboardHint } from '$lib/tauri';
+  import { search, execute, copyToClipboard, hideWindow, openUrl, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, emojiTogglePin, pluginHints, type PluginResult, type KeyboardHint } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
   let results = $state<PluginResult[]>([]);
+  let view = $state<'list' | 'grid'>('list');
   let selectedIndex = $state(0);
   let feedback = $state<string | null>(null);
   let hints = $state<KeyboardHint[]>([]);
@@ -17,7 +18,8 @@
     const q = query;
     search(q).then((r) => {
       if (query === q) {
-        results = r;
+        results = r.results;
+        view = r.view;
         selectedIndex = 0;
       }
     });
@@ -38,6 +40,7 @@
     unlisten = await listen('show-window', () => {
       query = '';
       results = [];
+      view = 'list';
       selectedIndex = 0;
       feedback = null;
     });
@@ -50,6 +53,7 @@
   function reset() {
     query = '';
     results = [];
+    view = 'list';
     selectedIndex = 0;
     feedback = null;
   }
@@ -93,7 +97,8 @@
     const q = query;
     const r = await search(q);
     if (query === q) {
-      results = r;
+      results = r.results;
+      view = r.view;
       if (selectedIndex >= results.length) {
         selectedIndex = Math.max(0, results.length - 1);
       }
@@ -121,7 +126,7 @@
   function handleKeydown(event: KeyboardEvent) {
     const selectedResult = results[selectedIndex] ?? null;
     const pluginId = selectedResult?.plugin_id ?? null;
-    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, event.shiftKey, pluginId);
+    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, event.shiftKey, pluginId, view);
     if (!action) return;
 
     event.preventDefault();
@@ -149,7 +154,12 @@
         break;
       case 'toggle_pin':
         if (selectedResult) {
-          clipboardTogglePin(Number(selectedResult.id)).then(refreshSearch);
+          const pid = selectedResult.plugin_id;
+          if (pid === 'clipboard') {
+            clipboardTogglePin(Number(selectedResult.id)).then(refreshSearch);
+          } else if (pid === 'emoji') {
+            emojiTogglePin(selectedResult.id).then(refreshSearch);
+          }
         }
         break;
     }
@@ -168,7 +178,7 @@
       <div class="feedback">{feedback}</div>
     {:else if results.length > 0}
       <div class="divider"></div>
-      <ResultList {results} {selectedIndex} onselect={(i) => activateResult(results[i])} />
+      <ResultList {results} {selectedIndex} {view} onselect={(i) => activateResult(results[i])} />
       {#if hints.length > 0}
         <div class="hints">
           {#each hints as hint}
@@ -197,6 +207,7 @@
     border: 1px solid var(--border);
     overflow: hidden;
     width: 680px;
+    max-height: calc(100vh - 16px);
     align-self: flex-start;
   }
 

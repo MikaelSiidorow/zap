@@ -37,6 +37,8 @@ pub struct PluginResult {
     pub score: u32,
     pub match_indices: Vec<u32>,
     #[serde(default)]
+    pub pinned: bool,
+    #[serde(default)]
     pub action: Action,
 }
 
@@ -72,6 +74,16 @@ pub trait Plugin: Send + Sync {
     fn supports_usage_ranking(&self) -> bool {
         false
     }
+    /// Layout mode for this plugin's results: "list" or "grid".
+    fn view(&self) -> &str {
+        "list"
+    }
+}
+
+#[derive(Clone, Serialize)]
+pub struct SearchResponse {
+    pub results: Vec<PluginResult>,
+    pub view: String,
 }
 
 pub struct PluginHost {
@@ -105,10 +117,13 @@ impl PluginHost {
         Ok(())
     }
 
-    pub fn search(&self, query: &str) -> Vec<PluginResult> {
+    pub fn search(&self, query: &str) -> SearchResponse {
         // Built-in "?" prefix → list installed plugins
         if let Some(filter) = query.strip_prefix('?') {
-            return self.help_results(filter.trim());
+            return SearchResponse {
+                results: self.help_results(filter.trim()),
+                view: "list".to_string(),
+            };
         }
 
         // Check for prefix match → exclusive routing
@@ -119,7 +134,10 @@ impl PluginHost {
         {
             let prefix = plugin.prefix().unwrap();
             let sub_query = &query[prefix.len()..];
-            return plugin.search(sub_query);
+            return SearchResponse {
+                results: plugin.search(sub_query),
+                view: plugin.view().to_string(),
+            };
         }
 
         // No prefix → fan out to non-prefixed plugins, merge by score
@@ -147,7 +165,10 @@ impl PluginHost {
 
         results.sort_by(|a, b| b.score.cmp(&a.score));
         results.truncate(9);
-        results
+        SearchResponse {
+            results,
+            view: "list".to_string(),
+        }
     }
 
     fn help_results(&self, filter: &str) -> Vec<PluginResult> {
@@ -187,6 +208,7 @@ impl PluginHost {
                     icon_path: None,
                     score: 0,
                     match_indices: vec![],
+                    pinned: false,
                     action,
                 }
             })

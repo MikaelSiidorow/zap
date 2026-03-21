@@ -17,6 +17,7 @@ pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResu
                 icon_path: app.icon_path.clone(),
                 score: 0,
                 match_indices: vec![],
+                pinned: false,
                 action: Action::default(),
             })
             .collect();
@@ -48,6 +49,7 @@ pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResu
                 icon_path: app.icon_path.clone(),
                 score: score as u32,
                 match_indices: indices,
+                pinned: false,
                 action: Action::default(),
             })
         })

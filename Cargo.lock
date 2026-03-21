@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "zap"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "arboard",
@@ -5690,6 +5690,7 @@ dependencies = [
  "zap-plugin-calc",
  "zap-plugin-clipboard",
  "zap-plugin-commands",
+ "zap-plugin-emoji",
  "zap-plugin-websearch",
 ]
 
@@ -5754,6 +5755,18 @@ dependencies = [
  "anyhow",
  "log",
  "nucleo-matcher",
+ "zap-core",
+]
+
+[[package]]
+name = "zap-plugin-emoji"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "log",
+ "nucleo-matcher",
+ "serde_json",
  "zap-core",
 ]
 

@@ -106,6 +106,7 @@ impl Plugin for WebSearchPlugin {
                         icon_path: None,
                         score: 100,
                         match_indices: vec![],
+                        pinned: false,
                         action: Action::SetQuery {
                             query: format!("{} ", engine.keyword),
                         },
@@ -122,6 +123,7 @@ impl Plugin for WebSearchPlugin {
                         icon_path: None,
                         score: 100,
                         match_indices: vec![],
+                        pinned: false,
                         action: Action::OpenUrl { url },
                     });
                 }
@@ -140,6 +142,7 @@ impl Plugin for WebSearchPlugin {
                 icon_path: None,
                 score: 50,
                 match_indices: vec![],
+                pinned: false,
                 action: Action::SetQuery {
                     query: format!("{} ", engine.keyword),
                 },
@@ -161,6 +164,7 @@ impl Plugin for WebSearchPlugin {
                         icon_path: None,
                         score: 5,
                         match_indices: vec![],
+                        pinned: false,
                         action: Action::SetQuery {
                             query: format!("{} ", engine.keyword),
                         },
@@ -184,6 +188,7 @@ impl Plugin for WebSearchPlugin {
                 icon_path: None,
                 score: 1,
                 match_indices: vec![],
+                pinned: false,
                 action: Action::OpenUrl { url },
             });
         }

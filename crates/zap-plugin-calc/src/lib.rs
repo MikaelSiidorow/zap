@@ -45,6 +45,7 @@ impl Plugin for CalcPlugin {
                 icon_path: None,
                 score: 100,
                 match_indices: vec![],
+                pinned: false,
                 action: Action::Copy { content: formatted },
             }];
         }
@@ -60,6 +61,7 @@ impl Plugin for CalcPlugin {
                 icon_path: None,
                 score: 100,
                 match_indices: vec![],
+                pinned: false,
                 action: Action::Copy {
                     content: unit_result.title,
                 },
@@ -77,6 +79,7 @@ impl Plugin for CalcPlugin {
                 icon_path: None,
                 score: 100,
                 match_indices: vec![],
+                pinned: false,
                 action: Action::Copy {
                     content: tz_result.title,
                 },

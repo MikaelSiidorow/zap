@@ -14,6 +14,7 @@ use zap_plugin_apps::AppsPlugin;
 use zap_plugin_calc::CalcPlugin;
 use zap_plugin_clipboard::ClipboardPlugin;
 use zap_plugin_commands::CommandsPlugin;
+use zap_plugin_emoji::EmojiPlugin;
 use zap_plugin_websearch::WebSearchPlugin;
 
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
@@ -174,6 +175,7 @@ pub fn run() {
     host.register(Box::new(CalcPlugin));
     host.register(Box::new(ClipboardPlugin::new()));
     host.register(Box::new(CommandsPlugin::new()));
+    host.register(Box::new(EmojiPlugin::new()));
     host.register(Box::new(WebSearchPlugin::new()));
     host.init_all(&plugin_config)
         .expect("failed to initialize plugins");
@@ -301,7 +303,8 @@ pub fn run() {
             commands::paste_image_to_frontmost,
             commands::copy_image_to_clipboard,
             commands::clipboard_delete,
-            commands::clipboard_toggle_pin
+            commands::clipboard_toggle_pin,
+            commands::emoji_toggle_pin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

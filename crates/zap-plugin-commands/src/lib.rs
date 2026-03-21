@@ -82,6 +82,7 @@ impl Plugin for CommandsPlugin {
                     icon_path: None,
                     score: (score as u32).min(MAX_SCORE),
                     match_indices: indices,
+                    pinned: false,
                     action: Action::default(),
                 })
             })

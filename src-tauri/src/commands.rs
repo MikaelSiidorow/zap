@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use tauri::Manager;
-use zap_core::{KeyboardHint, PluginHost, PluginResult};
+use zap_core::{KeyboardHint, PluginHost, SearchResponse};
 
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
@@ -8,7 +8,7 @@ pub fn open_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn search(query: String, state: tauri::State<'_, PluginHost>) -> Vec<PluginResult> {
+pub fn search(query: String, state: tauri::State<'_, PluginHost>) -> SearchResponse {
     state.search(&query)
 }
 
@@ -154,4 +154,9 @@ pub fn clipboard_toggle_pin(id: i64) -> Result<bool, String> {
     let db_path = clipboard_db_path();
     let conn = zap_plugin_clipboard::store::open_db(&db_path).map_err(|e| e.to_string())?;
     zap_plugin_clipboard::store::toggle_pin(&conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn emoji_toggle_pin(name: String) -> bool {
+    zap_plugin_emoji::pins::toggle_pin(&name)
 }

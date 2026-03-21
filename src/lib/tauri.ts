@@ -22,10 +22,16 @@ export interface PluginResult {
   icon_path: string | null;
   score: number;
   match_indices: number[];
+  pinned: boolean;
   action: Action;
 }
 
-export async function search(query: string): Promise<PluginResult[]> {
+export interface SearchResponse {
+  results: PluginResult[];
+  view: 'list' | 'grid';
+}
+
+export async function search(query: string): Promise<SearchResponse> {
   return invoke('search', { query });
 }
 
@@ -67,4 +73,8 @@ export async function clipboardDelete(id: number): Promise<void> {
 
 export async function clipboardTogglePin(id: number): Promise<boolean> {
   return invoke('clipboard_toggle_pin', { id });
+}
+
+export async function emojiTogglePin(name: string): Promise<boolean> {
+  return invoke('emoji_toggle_pin', { name });
 }

@@ -56,6 +56,7 @@ fn entry_to_result(entry: &ClipboardEntry, plugin_id: &str) -> PluginResult {
             icon_path: Some(blob_path.clone()),
             score: 0,
             match_indices: vec![],
+            pinned: entry.pinned,
             action: Action::PasteImage { path: blob_path },
         }
     } else {
@@ -68,6 +69,7 @@ fn entry_to_result(entry: &ClipboardEntry, plugin_id: &str) -> PluginResult {
             icon_path: None,
             score: 0,
             match_indices: vec![],
+            pinned: entry.pinned,
             action: Action::Paste {
                 content: entry.content.clone(),
             },
