@@ -1,5 +1,8 @@
+mod usage;
+
 use serde::Serialize;
 pub use serde_json;
+use usage::UsageTracker;
 
 /// Typed action declared on a result. The runtime handles execution and feedback,
 /// inspired by Raycast's action model (e.g. Action.CopyToClipboard).
@@ -65,16 +68,22 @@ pub trait Plugin: Send + Sync {
     fn hints(&self) -> Vec<KeyboardHint> {
         vec![]
     }
+    /// Whether this plugin's results should be boosted by usage frequency.
+    fn supports_usage_ranking(&self) -> bool {
+        false
+    }
 }
 
 pub struct PluginHost {
     plugins: Vec<Box<dyn Plugin>>,
+    usage: Option<UsageTracker>,
 }
 
 impl PluginHost {
     pub fn new() -> Self {
         Self {
             plugins: Vec::new(),
+            usage: UsageTracker::open_default(),
         }
     }
 
@@ -120,6 +129,21 @@ impl PluginHost {
             .filter(|p| p.prefix().is_none())
             .flat_map(|p| p.search(query))
             .collect();
+
+        // Boost scores based on usage frequency
+        if let Some(tracker) = &self.usage {
+            for result in &mut results {
+                if self
+                    .plugins
+                    .iter()
+                    .any(|p| p.id() == result.plugin_id && p.supports_usage_ranking())
+                {
+                    result.score = result
+                        .score
+                        .saturating_add(tracker.get_bonus(&result.plugin_id, &result.id));
+                }
+            }
+        }
 
         results.sort_by(|a, b| b.score.cmp(&a.score));
         results.truncate(9);
@@ -175,7 +199,16 @@ impl PluginHost {
             .iter()
             .find(|p| p.id() == plugin_id)
             .ok_or_else(|| anyhow::anyhow!("plugin '{}' not found", plugin_id))?;
-        plugin.execute(result_id)
+        plugin.execute(result_id)?;
+
+        // Record usage after successful execution
+        if let Some(tracker) = &self.usage {
+            if plugin.supports_usage_ranking() {
+                tracker.record(plugin_id, result_id);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn plugin_hints(&self, plugin_id: &str) -> Vec<KeyboardHint> {

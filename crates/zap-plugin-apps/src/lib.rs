@@ -62,4 +62,8 @@ impl Plugin for AppsPlugin {
     fn refresh(&self) {
         self.index.refresh();
     }
+
+    fn supports_usage_ranking(&self) -> bool {
+        true
+    }
 }

@@ -97,6 +97,10 @@ impl Plugin for CommandsPlugin {
         self.platform.execute(result_id)
     }
 
+    fn supports_usage_ranking(&self) -> bool {
+        true
+    }
+
     fn hints(&self) -> Vec<KeyboardHint> {
         vec![KeyboardHint {
             key: "Enter".into(),

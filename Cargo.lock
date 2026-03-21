@@ -5698,6 +5698,9 @@ name = "zap-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dirs",
+ "log",
+ "rusqlite",
  "serde",
  "serde_json",
 ]
