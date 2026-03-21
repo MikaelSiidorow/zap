@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, pluginHints, type PluginResult, type KeyboardHint } from '$lib/tauri';
+  import { search, execute, copyToClipboard, hideWindow, openUrl, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, pluginHints, type PluginResult, type KeyboardHint } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
@@ -78,7 +78,7 @@
         query = result.action.query;
         break;
       case 'OpenUrl':
-        // Future: open URL in browser
+        await openUrl(result.action.url);
         hide();
         break;
       case 'Open':

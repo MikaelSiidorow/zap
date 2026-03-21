@@ -3,6 +3,11 @@ use tauri::Manager;
 use zap_core::{KeyboardHint, PluginHost, PluginResult};
 
 #[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    open::that(url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn search(query: String, state: tauri::State<'_, PluginHost>) -> Vec<PluginResult> {
     state.search(&query)
 }

@@ -257,6 +257,7 @@ pub fn run() {
             commands::search,
             commands::plugin_hints,
             commands::execute,
+            commands::open_url,
             commands::copy_to_clipboard,
             commands::hide_window,
             commands::paste_to_frontmost,

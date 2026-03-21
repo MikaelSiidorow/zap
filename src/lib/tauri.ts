@@ -37,6 +37,10 @@ export async function execute(pluginId: string, resultId: string): Promise<void>
   return invoke('execute', { pluginId, resultId });
 }
 
+export async function openUrl(url: string): Promise<void> {
+  return invoke('open_url', { url });
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
   return invoke('copy_to_clipboard', { text });
 }
