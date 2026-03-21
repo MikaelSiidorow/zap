@@ -13,6 +13,7 @@ use zap_core::PluginHost;
 use zap_plugin_apps::AppsPlugin;
 use zap_plugin_calc::CalcPlugin;
 use zap_plugin_clipboard::ClipboardPlugin;
+use zap_plugin_commands::CommandsPlugin;
 use zap_plugin_websearch::WebSearchPlugin;
 
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
@@ -172,6 +173,7 @@ pub fn run() {
     host.register(Box::new(AppsPlugin::new()));
     host.register(Box::new(CalcPlugin));
     host.register(Box::new(ClipboardPlugin::new()));
+    host.register(Box::new(CommandsPlugin::new()));
     host.register(Box::new(WebSearchPlugin::new()));
     host.init_all(&plugin_config)
         .expect("failed to initialize plugins");

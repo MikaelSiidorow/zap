@@ -5689,6 +5689,7 @@ dependencies = [
  "zap-plugin-apps",
  "zap-plugin-calc",
  "zap-plugin-clipboard",
+ "zap-plugin-commands",
  "zap-plugin-websearch",
 ]
 
@@ -5740,6 +5741,16 @@ dependencies = [
  "rusqlite",
  "sha2",
  "time",
+ "zap-core",
+]
+
+[[package]]
+name = "zap-plugin-commands"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "nucleo-matcher",
  "zap-core",
 ]
 
