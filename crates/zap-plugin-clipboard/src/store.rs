@@ -66,7 +66,7 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         )?;
     }
 
-    if version >= 1 && version < 2 {
+    if (1..2).contains(&version) {
         // Upgrade from v1: add columns if they don't already exist
         // (handles partial migrations from a previous crash)
         if !has_column(conn, "clipboard_entries", "content_type") {
