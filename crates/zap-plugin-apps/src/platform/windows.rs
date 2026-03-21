@@ -32,16 +32,12 @@ fn shortcut_dirs() -> Vec<PathBuf> {
 
     // Start Menu shortcuts (per-user)
     if let Some(appdata) = std::env::var_os("APPDATA") {
-        dirs.push(
-            PathBuf::from(appdata).join("Microsoft\\Windows\\Start Menu\\Programs"),
-        );
+        dirs.push(PathBuf::from(appdata).join("Microsoft\\Windows\\Start Menu\\Programs"));
     }
 
     // Start Menu shortcuts (system-wide)
     if let Some(programdata) = std::env::var_os("PROGRAMDATA") {
-        dirs.push(
-            PathBuf::from(programdata).join("Microsoft\\Windows\\Start Menu\\Programs"),
-        );
+        dirs.push(PathBuf::from(programdata).join("Microsoft\\Windows\\Start Menu\\Programs"));
     }
 
     dirs

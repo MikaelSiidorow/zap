@@ -61,11 +61,11 @@ impl Plugin for WebSearchPlugin {
         // Merge user engines: override by keyword or append
         if let Some(user_engines) = config.get("engines").and_then(|v| v.as_array()) {
             for val in user_engines {
-                if let Ok(engine) =
-                    zap_core::serde_json::from_value::<SearchEngine>(val.clone())
-                {
-                    if let Some(existing) =
-                        self.engines.iter_mut().find(|e| e.keyword == engine.keyword)
+                if let Ok(engine) = zap_core::serde_json::from_value::<SearchEngine>(val.clone()) {
+                    if let Some(existing) = self
+                        .engines
+                        .iter_mut()
+                        .find(|e| e.keyword == engine.keyword)
                     {
                         existing.name = engine.name;
                         existing.url = engine.url;
@@ -98,7 +98,10 @@ impl Plugin for WebSearchPlugin {
                         id: format!("ws-{}", engine.keyword),
                         plugin_id: "websearch".into(),
                         title: format!("Search {} for...", engine.name),
-                        subtitle: Some(format!("Type your search query after '{} '", engine.keyword)),
+                        subtitle: Some(format!(
+                            "Type your search query after '{} '",
+                            engine.keyword
+                        )),
                         description: None,
                         icon_path: None,
                         score: 100,

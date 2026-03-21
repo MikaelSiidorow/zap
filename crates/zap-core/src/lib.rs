@@ -1,5 +1,5 @@
-pub use serde_json;
 use serde::Serialize;
+pub use serde_json;
 
 /// Typed action declared on a result. The runtime handles execution and feedback,
 /// inspired by Raycast's action model (e.g. Action.CopyToClipboard).
