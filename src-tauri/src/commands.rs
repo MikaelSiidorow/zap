@@ -20,9 +20,14 @@ pub fn execute(
 
 #[tauri::command]
 pub fn copy_to_clipboard(text: String) -> Result<(), String> {
-    arboard::Clipboard::new()
-        .and_then(|mut c| c.set_text(text))
-        .map_err(|e| e.to_string())
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_text(text).map_err(|e| e.to_string())?;
+    // Keep clipboard alive so clipboard manager can read contents (X11 ownership model)
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        drop(clipboard);
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -62,22 +67,23 @@ fn simulate_paste() {
 
 #[tauri::command]
 pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), String> {
-    arboard::Clipboard::new()
-        .and_then(|mut c| c.set_text(text))
-        .map_err(|e| e.to_string())?;
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_text(text).map_err(|e| e.to_string())?;
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
-    std::thread::spawn(|| {
+    std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(80));
         simulate_paste();
+        // Keep clipboard alive so clipboard manager can read contents
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        drop(clipboard);
     });
     Ok(())
 }
 
 #[tauri::command]
 pub fn paste_image_to_frontmost(path: String, app: tauri::AppHandle) -> Result<(), String> {
-    // Read PNG file and set as clipboard image
     let img = image::open(&path).map_err(|e| e.to_string())?;
     let rgba = img.to_rgba8();
     let (width, height) = rgba.dimensions();
@@ -86,16 +92,17 @@ pub fn paste_image_to_frontmost(path: String, app: tauri::AppHandle) -> Result<(
         height: height as usize,
         bytes: std::borrow::Cow::Owned(rgba.into_raw()),
     };
-    arboard::Clipboard::new()
-        .and_then(|mut c| c.set_image(img_data))
-        .map_err(|e| e.to_string())?;
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_image(img_data).map_err(|e| e.to_string())?;
 
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
-    std::thread::spawn(|| {
+    std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(80));
         simulate_paste();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        drop(clipboard);
     });
     Ok(())
 }
@@ -110,9 +117,13 @@ pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
         height: height as usize,
         bytes: std::borrow::Cow::Owned(rgba.into_raw()),
     };
-    arboard::Clipboard::new()
-        .and_then(|mut c| c.set_image(img_data))
-        .map_err(|e| e.to_string())
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_image(img_data).map_err(|e| e.to_string())?;
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        drop(clipboard);
+    });
+    Ok(())
 }
 
 #[tauri::command]
