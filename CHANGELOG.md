@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.2](https://github.com/MikaelSiidorow/zap/compare/v0.1.1...v0.1.2) (2026-03-21)
+
+
+### Features
+
+* **calc:** add unit conversion support ([3d17486](https://github.com/MikaelSiidorow/zap/commit/3d174864e15da2fea8a81ffcbd11db5874468eed))
+* **calc:** add year and month to time unit conversions ([609b76d](https://github.com/MikaelSiidorow/zap/commit/609b76df300ca8da803ed296bec9d360736f9e17))
+
+
+### Bug Fixes
+
+* **clipboard:** make schema migration crash-safe ([0ce9d5c](https://github.com/MikaelSiidorow/zap/commit/0ce9d5cbf83ead3f121bb3f0dac503c30b7a6a24))
+
 ## [0.1.1](https://github.com/MikaelSiidorow/zap/compare/v0.1.0...v0.1.1) (2026-03-21)
 
 
