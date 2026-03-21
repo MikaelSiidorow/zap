@@ -14,6 +14,9 @@ pub enum Action {
     OpenUrl { url: String },
     /// Set the search query (e.g. fill in a plugin prefix).
     SetQuery { query: String },
+    /// Paste text into the frontmost application.
+    /// Runtime: writes to clipboard, hides window, simulates Ctrl+V / Cmd+V.
+    Paste { content: String },
 }
 
 #[derive(Clone, Serialize)]

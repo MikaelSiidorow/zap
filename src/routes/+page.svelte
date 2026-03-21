@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, copyToClipboard, hideWindow, type PluginResult } from '$lib/tauri';
+  import { search, execute, copyToClipboard, hideWindow, pasteToFrontmost, clipboardDelete, clipboardTogglePin, type PluginResult } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
@@ -54,6 +54,10 @@
         feedback = 'Copied to clipboard';
         setTimeout(hide, 600);
         break;
+      case 'Paste':
+        await pasteToFrontmost(result.action.content);
+        reset();
+        break;
       case 'SetQuery':
         query = result.action.query;
         break;
@@ -69,8 +73,21 @@
     }
   }
 
+  async function refreshSearch() {
+    const q = query;
+    const r = await search(q);
+    if (query === q) {
+      results = r;
+      if (selectedIndex >= results.length) {
+        selectedIndex = Math.max(0, results.length - 1);
+      }
+    }
+  }
+
   function handleKeydown(event: KeyboardEvent) {
-    const action = handleKey(event.key, selectedIndex, results.length);
+    const selectedResult = results[selectedIndex] ?? null;
+    const pluginId = selectedResult?.plugin_id ?? null;
+    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, pluginId);
     if (!action) return;
 
     event.preventDefault();
@@ -85,6 +102,16 @@
         break;
       case 'hide':
         hide();
+        break;
+      case 'delete':
+        if (selectedResult) {
+          clipboardDelete(Number(selectedResult.id)).then(refreshSearch);
+        }
+        break;
+      case 'toggle_pin':
+        if (selectedResult) {
+          clipboardTogglePin(Number(selectedResult.id)).then(refreshSearch);
+        }
         break;
     }
   }

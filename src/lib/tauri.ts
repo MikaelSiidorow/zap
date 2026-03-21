@@ -4,7 +4,8 @@ export type Action =
   | { type: 'Open' }
   | { type: 'Copy'; content: string }
   | { type: 'OpenUrl'; url: string }
-  | { type: 'SetQuery'; query: string };
+  | { type: 'SetQuery'; query: string }
+  | { type: 'Paste'; content: string };
 
 export interface PluginResult {
   id: string;
@@ -32,4 +33,16 @@ export async function copyToClipboard(text: string): Promise<void> {
 
 export async function hideWindow(): Promise<void> {
   return invoke('hide_window');
+}
+
+export async function pasteToFrontmost(text: string): Promise<void> {
+  return invoke('paste_to_frontmost', { text });
+}
+
+export async function clipboardDelete(id: number): Promise<void> {
+  return invoke('clipboard_delete', { id });
+}
+
+export async function clipboardTogglePin(id: number): Promise<boolean> {
+  return invoke('clipboard_toggle_pin', { id });
 }

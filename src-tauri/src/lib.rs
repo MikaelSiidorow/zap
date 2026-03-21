@@ -11,6 +11,7 @@ use tauri::{
 use zap_core::PluginHost;
 use zap_plugin_apps::AppsPlugin;
 use zap_plugin_calc::CalcPlugin;
+use zap_plugin_clipboard::ClipboardPlugin;
 
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
 
@@ -136,6 +137,7 @@ pub fn run() {
     let mut host = PluginHost::new();
     host.register(Box::new(AppsPlugin::new()));
     host.register(Box::new(CalcPlugin));
+    host.register(Box::new(ClipboardPlugin::new()));
     host.init_all().expect("failed to initialize plugins");
 
     tauri::Builder::default()
@@ -253,7 +255,10 @@ pub fn run() {
             commands::search,
             commands::execute,
             commands::copy_to_clipboard,
-            commands::hide_window
+            commands::hide_window,
+            commands::paste_to_frontmost,
+            commands::clipboard_delete,
+            commands::clipboard_toggle_pin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
