@@ -98,7 +98,10 @@ pub fn spawn_monitor(db_path: PathBuf, blob_dir: PathBuf, config: ClipboardConfi
             if let Ok(img) = clipboard.get_image() {
                 let rgba_bytes = img.bytes.as_ref();
                 if rgba_bytes.len() > MAX_IMAGE_BYTES {
-                    debug!("clipboard monitor: skipping large image ({}MB)", rgba_bytes.len() / 1024 / 1024);
+                    debug!(
+                        "clipboard monitor: skipping large image ({}MB)",
+                        rgba_bytes.len() / 1024 / 1024
+                    );
                     continue;
                 }
                 let hash = sha256_bytes(rgba_bytes);

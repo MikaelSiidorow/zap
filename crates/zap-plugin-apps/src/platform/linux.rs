@@ -56,9 +56,7 @@ fn desktop_dirs() -> Vec<PathBuf> {
         dirs.push(home.join(".local/share/flatpak/exports/share/applications"));
     }
 
-    dirs.push(PathBuf::from(
-        "/var/lib/flatpak/exports/share/applications",
-    ));
+    dirs.push(PathBuf::from("/var/lib/flatpak/exports/share/applications"));
 
     if let Ok(xdg_dirs) = std::env::var("XDG_DATA_DIRS") {
         for dir in xdg_dirs.split(':') {
@@ -154,7 +152,16 @@ fn resolve_icon(icon: &str) -> Option<String> {
         return None;
     }
 
-    let sizes = ["48x48", "scalable", "256x256", "128x128", "64x64", "32x32", "512x512", "1024x1024"];
+    let sizes = [
+        "48x48",
+        "scalable",
+        "256x256",
+        "128x128",
+        "64x64",
+        "32x32",
+        "512x512",
+        "1024x1024",
+    ];
     let extensions = ["png", "svg"];
 
     // Search icon theme dirs

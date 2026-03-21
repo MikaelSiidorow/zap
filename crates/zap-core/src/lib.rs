@@ -97,11 +97,8 @@ impl PluginHost {
         }
 
         // No prefix → fan out to all plugins, merge by score
-        let mut results: Vec<PluginResult> = self
-            .plugins
-            .iter()
-            .flat_map(|p| p.search(query))
-            .collect();
+        let mut results: Vec<PluginResult> =
+            self.plugins.iter().flat_map(|p| p.search(query)).collect();
 
         results.sort_by(|a, b| b.score.cmp(&a.score));
         results.truncate(9);

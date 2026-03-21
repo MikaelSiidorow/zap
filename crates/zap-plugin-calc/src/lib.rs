@@ -42,9 +42,7 @@ impl Plugin for CalcPlugin {
                     icon_path: None,
                     score: 100,
                     match_indices: vec![],
-                    action: Action::Copy {
-                        content: formatted,
-                    },
+                    action: Action::Copy { content: formatted },
                 }]
             }
             Err(_) => vec![],

@@ -29,7 +29,8 @@ fn relative_time(epoch_secs: i64) -> String {
     } else if diff < 604800 {
         format!("{}d ago", diff / 86400)
     } else {
-        let dt = OffsetDateTime::from_unix_timestamp(epoch_secs).unwrap_or(OffsetDateTime::UNIX_EPOCH);
+        let dt =
+            OffsetDateTime::from_unix_timestamp(epoch_secs).unwrap_or(OffsetDateTime::UNIX_EPOCH);
         format!("{} {}", dt.month(), dt.day())
     }
 }

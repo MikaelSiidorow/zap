@@ -224,7 +224,10 @@ fn resolve_constant(name: &str) -> Result<f64, String> {
 fn call_function(name: &str, args: &[f64]) -> Result<f64, String> {
     let expect_args = |n: usize| -> Result<(), String> {
         if args.len() != n {
-            Err(format!("{name}() expects {n} argument(s), got {}", args.len()))
+            Err(format!(
+                "{name}() expects {n} argument(s), got {}",
+                args.len()
+            ))
         } else {
             Ok(())
         }
