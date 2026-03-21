@@ -1,4 +1,5 @@
 mod eval;
+mod timezone;
 
 use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
 
@@ -14,11 +15,11 @@ impl Plugin for CalcPlugin {
     }
 
     fn description(&self) -> &str {
-        "Inline calculator for math expressions"
+        "Math expressions and timezone conversions"
     }
 
     fn example(&self) -> Option<&str> {
-        Some("= 2+2")
+        Some("= 2+2 or = 9am tokyo to new york")
     }
 
     fn prefix(&self) -> Option<&str> {
@@ -30,23 +31,41 @@ impl Plugin for CalcPlugin {
         if input.is_empty() {
             return vec![];
         }
-        match eval::evaluate(input) {
-            Ok(value) => {
-                let formatted = format_number(value);
-                vec![PluginResult {
-                    id: "result".into(),
-                    plugin_id: "calc".into(),
-                    title: formatted.clone(),
-                    subtitle: Some(format!("= {input}")),
-                    description: None,
-                    icon_path: None,
-                    score: 100,
-                    match_indices: vec![],
-                    action: Action::Copy { content: formatted },
-                }]
-            }
-            Err(_) => vec![],
+
+        // Try math evaluation first
+        if let Ok(value) = eval::evaluate(input) {
+            let formatted = format_number(value);
+            return vec![PluginResult {
+                id: "result".into(),
+                plugin_id: "calc".into(),
+                title: formatted.clone(),
+                subtitle: Some(format!("= {input}")),
+                description: None,
+                icon_path: None,
+                score: 100,
+                match_indices: vec![],
+                action: Action::Copy { content: formatted },
+            }];
         }
+
+        // Try timezone conversion
+        if let Some(tz_result) = timezone::try_convert(input) {
+            return vec![PluginResult {
+                id: "tz_result".into(),
+                plugin_id: "calc".into(),
+                title: tz_result.title.clone(),
+                subtitle: Some(tz_result.subtitle),
+                description: None,
+                icon_path: None,
+                score: 100,
+                match_indices: vec![],
+                action: Action::Copy {
+                    content: tz_result.title,
+                },
+            }];
+        }
+
+        vec![]
     }
 
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
