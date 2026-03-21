@@ -1,5 +1,6 @@
 mod eval;
 mod timezone;
+mod units;
 
 use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
 
@@ -45,6 +46,23 @@ impl Plugin for CalcPlugin {
                 score: 100,
                 match_indices: vec![],
                 action: Action::Copy { content: formatted },
+            }];
+        }
+
+        // Try unit conversion
+        if let Some(unit_result) = units::try_convert(input) {
+            return vec![PluginResult {
+                id: "unit_result".into(),
+                plugin_id: "calc".into(),
+                title: unit_result.title.clone(),
+                subtitle: Some(unit_result.subtitle),
+                description: None,
+                icon_path: None,
+                score: 100,
+                match_indices: vec![],
+                action: Action::Copy {
+                    content: unit_result.title,
+                },
             }];
         }
 
