@@ -132,6 +132,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .format_target(false)
+        .write_style(env_logger::WriteStyle::Always)
         .init();
 
     let mut host = PluginHost::new();
@@ -147,9 +148,7 @@ pub fn run() {
                 use tauri_plugin_global_shortcut::ShortcutState;
 
                 let shortcut = "alt+space";
-                match tauri_plugin_global_shortcut::Builder::new()
-                    .with_shortcuts([shortcut])
-                {
+                match tauri_plugin_global_shortcut::Builder::new().with_shortcuts([shortcut]) {
                     Ok(builder) => {
                         if let Err(e) = app.handle().plugin(
                             builder
