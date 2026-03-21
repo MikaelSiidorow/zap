@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4](https://github.com/MikaelSiidorow/zap/compare/v0.1.3...v0.1.4) (2026-03-21)
+
+
+### Features
+
+* add config system and web search plugin ([dad80cc](https://github.com/MikaelSiidorow/zap/commit/dad80ccd4bce5e18209d36835fc35c1e8ac61d87))
+* wire up Action::OpenUrl via open crate ([a4bd8d7](https://github.com/MikaelSiidorow/zap/commit/a4bd8d799b18c504b3abd757539b33c743376e2f))
+
+
+### Bug Fixes
+
+* exclude prefixed plugins from global fan-out and show all plugins in help ([92704e7](https://github.com/MikaelSiidorow/zap/commit/92704e7695a098883412c10d1b45cdd2335da43c))
+* gate Unix socket IPC for Windows compatibility ([951b87b](https://github.com/MikaelSiidorow/zap/commit/951b87b13cfebdd944449a1cbf5573bb9760ae38))
+
 ## [0.1.3](https://github.com/MikaelSiidorow/zap/compare/v0.1.2...v0.1.3) (2026-03-21)
 
 
