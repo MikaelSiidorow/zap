@@ -3,31 +3,31 @@
   --hue: 225;
 
   /* Surface scale — low chroma, tinted with brand hue */
-  --surface-dim:    oklch(0.18 0.015 var(--hue));
-  --surface:        oklch(0.22 0.015 var(--hue));
-  --surface-bright: oklch(0.28 0.015 var(--hue));
-  --surface-hover:  oklch(0.32 0.018 var(--hue));
+  --surface-dim:    oklch(18% 0.015 var(--hue));
+  --surface:        oklch(22% 0.015 var(--hue));
+  --surface-bright: oklch(28% 0.015 var(--hue));
+  --surface-hover:  oklch(32% 0.018 var(--hue));
 
   /* Text scale */
-  --text:       oklch(0.90 0.010 var(--hue));
-  --text-muted: oklch(0.55 0.012 var(--hue));
+  --text:       oklch(90% 0.010 var(--hue));
+  --text-muted: oklch(55% 0.012 var(--hue));
 
   /* Borders */
-  --border: oklch(0.35 0.015 var(--hue));
+  --border: oklch(35% 0.015 var(--hue));
 
   /* Accent — high chroma at brand hue */
-  --accent:       oklch(0.72 0.140 var(--hue));
-  --accent-muted: oklch(0.60 0.080 var(--hue));
+  --accent:       oklch(72% 0.140 var(--hue));
+  --accent-muted: oklch(60% 0.080 var(--hue));
 
   /* Semantic colors — fixed hues, consistent lightness */
-  --danger:  oklch(0.65 0.120 25);
-  --success: oklch(0.72 0.120 150);
-  --warning: oklch(0.80 0.110 85);
+  --danger:  oklch(65% 0.120 25deg);
+  --success: oklch(72% 0.120 150deg);
+  --warning: oklch(80% 0.110 85deg);
 
   /* Semantic aliases */
   --bg:           var(--surface);
   --bg-selected:  var(--surface-hover);
-  --bg-secondary: oklch(0.26 0.015 var(--hue));
+  --bg-secondary: oklch(26% 0.015 var(--hue));
 
   /* Spacing scale (4px base) */
   --space-1:  2px;
@@ -62,7 +62,7 @@
   /* Motion */
   --duration-fast: 0.1s;
 
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: var(--text);

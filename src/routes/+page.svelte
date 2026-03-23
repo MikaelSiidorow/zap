@@ -162,7 +162,7 @@
     border: 1px solid var(--border);
     overflow: hidden;
     width: var(--launcher-width);
-    max-height: calc(100vh - var(--space-6));
+    max-height: calc(100svh - var(--space-6));
     align-self: flex-start;
   }
 

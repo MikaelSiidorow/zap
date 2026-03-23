@@ -1,0 +1,23 @@
+{
+  "extends": ["stylelint-config-standard", "stylelint-config-html/svelte"],
+  "rules": {
+    "custom-property-pattern": null,
+    "selector-class-pattern": null,
+    "declaration-empty-line-before": null,
+
+    "color-named": "never",
+    "color-no-hex": true,
+    "declaration-no-important": true,
+    "font-weight-notation": "numeric",
+    "shorthand-property-no-redundant-values": true,
+    "declaration-block-no-redundant-longhand-properties": true
+  },
+  "overrides": [
+    {
+      "files": ["src/app.css"],
+      "rules": {
+        "color-no-hex": null
+      }
+    }
+  ]
+}
