@@ -4,6 +4,7 @@
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
   import { commands, type PluginResult, type KeyboardHint, type ViewMode, type Capability } from '$lib/tauri';
+  import { executeAction, copyAction, type ActionOutcome } from '$lib/actions';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
@@ -38,14 +39,7 @@
   });
 
   onMount(async () => {
-    unlisten = await listen('show-window', () => {
-      query = '';
-      results = [];
-      view = { type: 'List' };
-      capabilities = [];
-      selectedIndex = 0;
-      feedback = null;
-    });
+    unlisten = await listen('show-window', () => reset());
   });
 
   onDestroy(() => {
@@ -66,34 +60,21 @@
     commands.hideWindow();
   }
 
-  async function activateResult(result: PluginResult) {
-    const action = result.action;
-    if (!action) return;
-    switch (action.type) {
-      case 'Copy':
-        await commands.copyToClipboard(action.content);
-        feedback = 'Copied to clipboard';
-        setTimeout(hide, 600);
+  function applyOutcome(outcome: ActionOutcome) {
+    if (!outcome) return;
+    switch (outcome.type) {
+      case 'feedback':
+        feedback = outcome.message;
+        if (outcome.autoHide) setTimeout(hide, 600);
         break;
-      case 'Paste':
-        await commands.pasteToFrontmost(action.content);
+      case 'reset':
         reset();
         break;
-      case 'PasteImage':
-        await commands.pasteImageToFrontmost(action.path);
-        reset();
-        break;
-      case 'SetQuery':
-        query = action.query;
-        break;
-      case 'OpenUrl':
-        await commands.openUrl(action.url);
+      case 'hide':
         hide();
         break;
-      case 'Open':
-      default:
-        await commands.execute(result.plugin_id, result.id);
-        hide();
+      case 'set_query':
+        query = outcome.query;
         break;
     }
   }
@@ -111,26 +92,6 @@
     }
   }
 
-  async function copyResult(result: PluginResult) {
-    const action = result.action;
-    if (!action) return;
-    switch (action.type) {
-      case 'Paste':
-      case 'Copy':
-        await commands.copyToClipboard(action.content);
-        feedback = 'Copied to clipboard';
-        setTimeout(hide, 600);
-        break;
-      case 'PasteImage':
-        await commands.copyImageToClipboard(action.path);
-        feedback = 'Image copied to clipboard';
-        setTimeout(hide, 600);
-        break;
-      default:
-        break;
-    }
-  }
-
   function handleKeydown(event: KeyboardEvent) {
     const selectedResult = results[selectedIndex] ?? null;
     const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, event.shiftKey, capabilities, view);
@@ -142,27 +103,19 @@
         selectedIndex = action.index;
         break;
       case 'select':
-        if (results[action.index]) {
-          activateResult(results[action.index]);
-        }
+        if (results[action.index]) executeAction(results[action.index]).then(applyOutcome);
         break;
       case 'copy':
-        if (results[action.index]) {
-          copyResult(results[action.index]);
-        }
+        if (results[action.index]) copyAction(results[action.index]).then(applyOutcome);
         break;
       case 'hide':
         hide();
         break;
       case 'delete':
-        if (selectedResult) {
-          commands.deleteResult(selectedResult.plugin_id, selectedResult.id).then(refreshSearch);
-        }
+        if (selectedResult) commands.deleteResult(selectedResult.plugin_id, selectedResult.id).then(refreshSearch);
         break;
       case 'toggle_pin':
-        if (selectedResult) {
-          commands.togglePin(selectedResult.plugin_id, selectedResult.id).then(refreshSearch);
-        }
+        if (selectedResult) commands.togglePin(selectedResult.plugin_id, selectedResult.id).then(refreshSearch);
         break;
     }
   }
@@ -180,7 +133,7 @@
       <div class="feedback">{feedback}</div>
     {:else if results.length > 0}
       <div class="divider"></div>
-      <ResultList {results} {selectedIndex} {view} onselect={(i) => activateResult(results[i])} />
+      <ResultList {results} {selectedIndex} {view} onselect={(i) => executeAction(results[i]).then(applyOutcome)} />
       {#if hints.length > 0}
         <div class="hints">
           {#each hints as hint}

@@ -55,24 +55,34 @@ pub fn open_url(url: String) -> Result<(), String> {
     open::that(url).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn copy_to_clipboard(text: String) -> Result<(), String> {
-    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
-    clipboard.set_text(text).map_err(|e| e.to_string())?;
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        drop(clipboard);
-    });
-    Ok(())
+// ---------------------------------------------------------------------------
+// Clipboard helpers
+// ---------------------------------------------------------------------------
+
+fn load_image(path: &str) -> Result<arboard::ImageData<'static>, String> {
+    let img = image::open(path).map_err(|e| e.to_string())?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    Ok(arboard::ImageData {
+        width: width as usize,
+        height: height as usize,
+        bytes: std::borrow::Cow::Owned(rgba.into_raw()),
+    })
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn hide_window(app: tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.hide();
-    }
+/// Keep clipboard alive in a background thread so clipboard managers can read
+/// the content (X11 ownership model). Optionally simulates Ctrl+V / Cmd+V.
+fn keep_alive_and_paste(clipboard: arboard::Clipboard, paste: bool) {
+    std::thread::spawn(move || {
+        if paste {
+            std::thread::sleep(std::time::Duration::from_millis(80));
+            simulate_paste();
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        } else {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+        drop(clipboard);
+    });
 }
 
 fn simulate_paste() {
@@ -96,6 +106,27 @@ fn simulate_paste() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Clipboard commands
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+#[specta::specta]
+pub fn copy_to_clipboard(text: String) -> Result<(), String> {
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_text(text).map_err(|e| e.to_string())?;
+    keep_alive_and_paste(clipboard, false);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn hide_window(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -104,57 +135,29 @@ pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), Str
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(80));
-        simulate_paste();
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        drop(clipboard);
-    });
+    keep_alive_and_paste(clipboard, true);
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn paste_image_to_frontmost(path: String, app: tauri::AppHandle) -> Result<(), String> {
-    let img = image::open(&path).map_err(|e| e.to_string())?;
-    let rgba = img.to_rgba8();
-    let (width, height) = rgba.dimensions();
-    let img_data = arboard::ImageData {
-        width: width as usize,
-        height: height as usize,
-        bytes: std::borrow::Cow::Owned(rgba.into_raw()),
-    };
+    let img_data = load_image(&path)?;
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_image(img_data).map_err(|e| e.to_string())?;
-
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(80));
-        simulate_paste();
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        drop(clipboard);
-    });
+    keep_alive_and_paste(clipboard, true);
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
-    let img = image::open(&path).map_err(|e| e.to_string())?;
-    let rgba = img.to_rgba8();
-    let (width, height) = rgba.dimensions();
-    let img_data = arboard::ImageData {
-        width: width as usize,
-        height: height as usize,
-        bytes: std::borrow::Cow::Owned(rgba.into_raw()),
-    };
+    let img_data = load_image(&path)?;
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_image(img_data).map_err(|e| e.to_string())?;
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        drop(clipboard);
-    });
+    keep_alive_and_paste(clipboard, false);
     Ok(())
 }
