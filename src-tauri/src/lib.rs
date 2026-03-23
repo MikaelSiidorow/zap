@@ -180,8 +180,33 @@ pub fn run() {
     host.init_all(&plugin_config)
         .expect("failed to initialize plugins");
 
+    let specta_builder =
+        tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+            commands::search,
+            commands::plugin_hints,
+            commands::execute,
+            commands::delete_result,
+            commands::toggle_pin,
+            commands::open_url,
+            commands::copy_to_clipboard,
+            commands::hide_window,
+            commands::paste_to_frontmost,
+            commands::paste_image_to_frontmost,
+            commands::copy_image_to_clipboard,
+        ]);
+
+    #[cfg(debug_assertions)]
+    specta_builder
+        .export(
+            &specta_typescript::Typescript::default(),
+            "../src/lib/bindings.ts",
+        )
+        .expect("Failed to export typescript bindings");
+
     tauri::Builder::default()
+        .invoke_handler(specta_builder.invoke_handler())
         .setup(move |app| {
+            specta_builder.mount_events(app);
             #[cfg(desktop)]
             {
                 use tauri_plugin_global_shortcut::ShortcutState;
@@ -292,20 +317,6 @@ pub fn run() {
                 }
             });
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::search,
-            commands::plugin_hints,
-            commands::execute,
-            commands::open_url,
-            commands::copy_to_clipboard,
-            commands::hide_window,
-            commands::paste_to_frontmost,
-            commands::paste_image_to_frontmost,
-            commands::copy_image_to_clipboard,
-            commands::clipboard_delete,
-            commands::clipboard_toggle_pin,
-            commands::emoji_toggle_pin
-        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

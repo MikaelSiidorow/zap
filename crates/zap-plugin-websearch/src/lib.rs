@@ -2,7 +2,7 @@ mod engines;
 
 use engines::{default_engines, SearchEngine};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
+use zap_core::{Action, KeyboardHint, Plugin, PluginMeta, PluginResult};
 
 pub struct WebSearchPlugin {
     engines: Vec<SearchEngine>,
@@ -36,29 +36,17 @@ impl Default for WebSearchPlugin {
 }
 
 impl Plugin for WebSearchPlugin {
-    fn id(&self) -> &str {
-        "websearch"
-    }
-
-    fn name(&self) -> &str {
-        "Web Search"
-    }
-
-    fn description(&self) -> &str {
-        "Search the web with keyword shortcuts"
-    }
-
-    fn example(&self) -> Option<&str> {
-        Some("g rust programming")
+    fn meta(&self) -> PluginMeta {
+        PluginMeta::new("websearch", "Web Search")
+            .description("Search the web with keyword shortcuts")
+            .example("g rust programming")
     }
 
     fn init(&mut self, config: zap_core::serde_json::Value) -> anyhow::Result<()> {
-        // Override default keyword
         if let Some(d) = config.get("default").and_then(|v| v.as_str()) {
             self.default_keyword = d.to_string();
         }
 
-        // Merge user engines: override by keyword or append
         if let Some(user_engines) = config.get("engines").and_then(|v| v.as_array()) {
             for val in user_engines {
                 if let Ok(engine) = zap_core::serde_json::from_value::<SearchEngine>(val.clone()) {
@@ -86,91 +74,71 @@ impl Plugin for WebSearchPlugin {
             return vec![];
         }
 
-        let mut results = Vec::new();
-
         // Check for "keyword query" pattern
         if let Some((first_word, rest)) = query.split_once(' ') {
-            // Keyword match with query text
             if let Some(engine) = self.engines.iter().find(|e| e.keyword == first_word) {
                 if rest.is_empty() {
-                    // "keyword " (trailing space, no query yet) — placeholder
-                    results.push(PluginResult {
-                        id: format!("ws-{}", engine.keyword),
-                        plugin_id: "websearch".into(),
-                        title: format!("Search {} for...", engine.name),
-                        subtitle: Some(format!(
-                            "Type your search query after '{} '",
-                            engine.keyword
-                        )),
-                        description: None,
-                        icon_path: None,
-                        score: 100,
-                        match_indices: vec![],
-                        pinned: false,
-                        action: Action::SetQuery {
-                            query: format!("{} ", engine.keyword),
-                        },
-                    });
+                    return vec![PluginResult::new(
+                        "websearch",
+                        format!("ws-{}", engine.keyword),
+                        format!("Search {} for...", engine.name),
+                    )
+                    .subtitle(format!(
+                        "Type your search query after '{} '",
+                        engine.keyword
+                    ))
+                    .score(100)
+                    .action(Action::SetQuery {
+                        query: format!("{} ", engine.keyword),
+                    })];
                 } else {
-                    // Full keyword + query
                     let url = Self::build_url(&engine.url, rest);
-                    results.push(PluginResult {
-                        id: format!("ws-{}", engine.keyword),
-                        plugin_id: "websearch".into(),
-                        title: format!("Search {} for '{}'", engine.name, rest),
-                        subtitle: Some(engine.name.clone()),
-                        description: None,
-                        icon_path: None,
-                        score: 100,
-                        match_indices: vec![],
-                        pinned: false,
-                        action: Action::OpenUrl { url },
-                    });
+                    return vec![PluginResult::new(
+                        "websearch",
+                        format!("ws-{}", engine.keyword),
+                        format!("Search {} for '{}'", engine.name, rest),
+                    )
+                    .subtitle(&engine.name)
+                    .score(100)
+                    .action(Action::OpenUrl { url })];
                 }
-                return results;
             }
         }
 
-        // Exact keyword without space — hint to add space
+        // Exact keyword without space
         if let Some(engine) = self.engines.iter().find(|e| e.keyword == query) {
-            results.push(PluginResult {
-                id: format!("ws-{}", engine.keyword),
-                plugin_id: "websearch".into(),
-                title: format!("Search {}", engine.name),
-                subtitle: Some("Type a space then your query".into()),
-                description: None,
-                icon_path: None,
-                score: 50,
-                match_indices: vec![],
-                pinned: false,
-                action: Action::SetQuery {
-                    query: format!("{} ", engine.keyword),
-                },
-            });
-            return results;
+            return vec![PluginResult::new(
+                "websearch",
+                format!("ws-{}", engine.keyword),
+                format!("Search {}", engine.name),
+            )
+            .subtitle("Type a space then your query")
+            .score(50)
+            .action(Action::SetQuery {
+                query: format!("{} ", engine.keyword),
+            })];
         }
 
-        // Partial keyword match (≥2 chars)
+        // Partial keyword match (>=2 chars)
         if query.len() >= 2 && !query.contains(' ') {
             let lower = query.to_lowercase();
-            for engine in &self.engines {
-                if engine.keyword.starts_with(&lower) && engine.keyword != lower {
-                    results.push(PluginResult {
-                        id: format!("ws-{}", engine.keyword),
-                        plugin_id: "websearch".into(),
-                        title: format!("{} ({})", engine.name, engine.keyword),
-                        subtitle: Some("Web search shortcut".into()),
-                        description: None,
-                        icon_path: None,
-                        score: 5,
-                        match_indices: vec![],
-                        pinned: false,
-                        action: Action::SetQuery {
-                            query: format!("{} ", engine.keyword),
-                        },
-                    });
-                }
-            }
+            let mut results: Vec<PluginResult> = self
+                .engines
+                .iter()
+                .filter(|e| e.keyword.starts_with(&lower) && e.keyword != lower)
+                .map(|engine| {
+                    PluginResult::new(
+                        "websearch",
+                        format!("ws-{}", engine.keyword),
+                        format!("{} ({})", engine.name, engine.keyword),
+                    )
+                    .subtitle("Web search shortcut")
+                    .score(5)
+                    .action(Action::SetQuery {
+                        query: format!("{} ", engine.keyword),
+                    })
+                })
+                .collect();
             if !results.is_empty() {
                 return results;
             }
@@ -179,25 +147,20 @@ impl Plugin for WebSearchPlugin {
         // Fallback: "Search {default} for {query}"
         if let Some(engine) = self.default_engine() {
             let url = Self::build_url(&engine.url, query);
-            results.push(PluginResult {
-                id: "ws-fallback".into(),
-                plugin_id: "websearch".into(),
-                title: format!("Search {} for '{}'", engine.name, query),
-                subtitle: Some(engine.name.clone()),
-                description: None,
-                icon_path: None,
-                score: 1,
-                match_indices: vec![],
-                pinned: false,
-                action: Action::OpenUrl { url },
-            });
+            return vec![PluginResult::new(
+                "websearch",
+                "ws-fallback",
+                format!("Search {} for '{}'", engine.name, query),
+            )
+            .subtitle(&engine.name)
+            .score(1)
+            .action(Action::OpenUrl { url })];
         }
 
-        results
+        vec![]
     }
 
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
-        // All actions are OpenUrl or SetQuery, handled by the runtime
         Ok(())
     }
 

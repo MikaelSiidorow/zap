@@ -2,12 +2,9 @@ mod commands;
 mod platform;
 
 use commands::COMMANDS;
-use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization};
-use nucleo_matcher::{Config, Matcher, Utf32String};
 use platform::{create_platform, Platform};
-use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
+use zap_core::{fuzzy_match, KeyboardHint, Plugin, PluginMeta, PluginResult};
 
-const PLUGIN_ID: &str = "commands";
 const MAX_SCORE: u32 = 80;
 
 pub struct CommandsPlugin {
@@ -29,20 +26,11 @@ impl Default for CommandsPlugin {
 }
 
 impl Plugin for CommandsPlugin {
-    fn id(&self) -> &str {
-        PLUGIN_ID
-    }
-
-    fn name(&self) -> &str {
-        "System Commands"
-    }
-
-    fn description(&self) -> &str {
-        "Lock screen, sleep, restart, shutdown, and more"
-    }
-
-    fn example(&self) -> Option<&str> {
-        Some("lock")
+    fn meta(&self) -> PluginMeta {
+        PluginMeta::new("commands", "System Commands")
+            .description("Lock screen, sleep, restart, shutdown, and more")
+            .example("lock")
+            .usage_ranking()
     }
 
     fn search(&self, query: &str) -> Vec<PluginResult> {
@@ -50,41 +38,22 @@ impl Plugin for CommandsPlugin {
             return vec![];
         }
 
-        let mut matcher = Matcher::new(Config::DEFAULT);
-        let atom = Atom::new(
-            query,
-            CaseMatching::Smart,
-            Normalization::Smart,
-            AtomKind::Fuzzy,
-            false,
-        );
-
         let mut results: Vec<PluginResult> = COMMANDS
             .iter()
             .filter_map(|cmd| {
                 let search_text = format!("{} {}", cmd.title, cmd.keywords);
-                let haystack = Utf32String::from(search_text.as_str());
-                let mut indices = Vec::new();
-                let score = atom.indices(haystack.slice(..), &mut matcher, &mut indices)?;
+                let m = fuzzy_match(query, &search_text)?;
 
                 // Only keep indices within the title (filter out keyword matches)
                 let title_len = cmd.title.chars().count() as u32;
-                indices.retain(|&i| i < title_len);
-                indices.sort_unstable();
-                indices.dedup();
+                let indices: Vec<u32> = m.indices.into_iter().filter(|&i| i < title_len).collect();
 
-                Some(PluginResult {
-                    id: cmd.id.to_string(),
-                    plugin_id: PLUGIN_ID.to_string(),
-                    title: cmd.title.to_string(),
-                    subtitle: Some(cmd.subtitle.to_string()),
-                    description: None,
-                    icon_path: None,
-                    score: (score as u32).min(MAX_SCORE),
-                    match_indices: indices,
-                    pinned: false,
-                    action: Action::default(),
-                })
+                Some(
+                    PluginResult::new("commands", cmd.id, cmd.title)
+                        .subtitle(cmd.subtitle)
+                        .score(m.score.min(MAX_SCORE))
+                        .indices(indices),
+                )
             })
             .collect();
 
@@ -96,10 +65,6 @@ impl Plugin for CommandsPlugin {
     fn execute(&self, result_id: &str) -> anyhow::Result<()> {
         log::info!("Executing system command: {result_id}");
         self.platform.execute(result_id)
-    }
-
-    fn supports_usage_ranking(&self) -> bool {
-        true
     }
 
     fn hints(&self) -> Vec<KeyboardHint> {
@@ -139,7 +104,6 @@ mod tests {
         let results = p.search("suspend");
         assert!(!results.is_empty());
         assert_eq!(results[0].title, "Sleep");
-        // Keyword match should have no title highlight indices
         assert!(results[0].match_indices.is_empty());
     }
 
@@ -176,8 +140,9 @@ mod tests {
     #[test]
     fn plugin_metadata() {
         let p = plugin();
-        assert_eq!(p.id(), "commands");
-        assert_eq!(p.name(), "System Commands");
-        assert!(p.prefix().is_none());
+        let meta = p.meta();
+        assert_eq!(meta.id, "commands");
+        assert_eq!(meta.name, "System Commands");
+        assert!(meta.prefix.is_none());
     }
 }

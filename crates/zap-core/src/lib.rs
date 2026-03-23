@@ -1,32 +1,58 @@
+mod fuzzy;
 mod usage;
 
+pub use fuzzy::{fuzzy_match, FuzzyMatch};
 use serde::Serialize;
 pub use serde_json;
 use usage::UsageTracker;
 
-/// Typed action declared on a result. The runtime handles execution and feedback,
-/// inspired by Raycast's action model (e.g. Action.CopyToClipboard).
-#[derive(Clone, Serialize, Default)]
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Serialize, Default, specta::Type)]
 #[serde(tag = "type")]
 pub enum Action {
-    /// Plugin handles execution via execute() callback.
     #[default]
     Open,
-    /// Copy text to clipboard. Runtime shows "Copied to clipboard" feedback.
-    Copy { content: String },
-    /// Open a URL in the default browser.
-    OpenUrl { url: String },
-    /// Set the search query (e.g. fill in a plugin prefix).
-    SetQuery { query: String },
-    /// Paste text into the frontmost application.
-    /// Runtime: writes to clipboard, hides window, simulates Ctrl+V / Cmd+V.
-    Paste { content: String },
-    /// Paste an image (from a file path) into the frontmost application.
-    /// Runtime: loads image into clipboard, hides window, simulates Ctrl+V / Cmd+V.
-    PasteImage { path: String },
+    Copy {
+        content: String,
+    },
+    OpenUrl {
+        url: String,
+    },
+    SetQuery {
+        query: String,
+    },
+    Paste {
+        content: String,
+    },
+    PasteImage {
+        path: String,
+    },
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, Serialize, specta::Type)]
+#[serde(tag = "type")]
+pub enum ViewMode {
+    List,
+    Grid { columns: u8 },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, specta::Type)]
+pub enum Capability {
+    Delete,
+    Pin,
+    Copy,
+}
+
+#[derive(Clone, Serialize, specta::Type)]
+pub struct KeyboardHint {
+    pub key: String,
+    pub label: String,
+}
+
+#[derive(Clone, Serialize, specta::Type)]
 pub struct PluginResult {
     pub id: String,
     pub plugin_id: String,
@@ -42,49 +68,156 @@ pub struct PluginResult {
     pub action: Action,
 }
 
-#[derive(Clone, Serialize)]
-pub struct KeyboardHint {
-    pub key: String,
-    pub label: String,
+impl PluginResult {
+    pub fn new(plugin_id: &str, id: impl Into<String>, title: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            plugin_id: plugin_id.to_string(),
+            title: title.into(),
+            subtitle: None,
+            description: None,
+            icon_path: None,
+            score: 0,
+            match_indices: vec![],
+            pinned: false,
+            action: Action::default(),
+        }
+    }
+
+    pub fn subtitle(mut self, s: impl Into<String>) -> Self {
+        self.subtitle = Some(s.into());
+        self
+    }
+
+    pub fn description(mut self, d: impl Into<String>) -> Self {
+        self.description = Some(d.into());
+        self
+    }
+
+    pub fn icon(mut self, path: impl Into<String>) -> Self {
+        self.icon_path = Some(path.into());
+        self
+    }
+
+    pub fn score(mut self, s: u32) -> Self {
+        self.score = s;
+        self
+    }
+
+    pub fn indices(mut self, i: Vec<u32>) -> Self {
+        self.match_indices = i;
+        self
+    }
+
+    pub fn pinned(mut self) -> Self {
+        self.pinned = true;
+        self
+    }
+
+    pub fn action(mut self, a: Action) -> Self {
+        self.action = a;
+        self
+    }
+}
+
+#[derive(Clone, Serialize, specta::Type)]
+pub struct SearchResponse {
+    pub results: Vec<PluginResult>,
+    pub view: ViewMode,
+    pub capabilities: Vec<Capability>,
+}
+
+// ---------------------------------------------------------------------------
+// Plugin metadata & trait
+// ---------------------------------------------------------------------------
+
+pub struct PluginMeta {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub example: Option<&'static str>,
+    pub prefix: Option<&'static str>,
+    pub view: ViewMode,
+    pub usage_ranking: bool,
+    pub max_results: usize,
+    pub capabilities: Vec<Capability>,
+}
+
+impl PluginMeta {
+    pub fn new(id: &'static str, name: &'static str) -> Self {
+        Self {
+            id,
+            name,
+            description: "",
+            example: None,
+            prefix: None,
+            view: ViewMode::List,
+            usage_ranking: false,
+            max_results: 9,
+            capabilities: vec![],
+        }
+    }
+
+    pub fn description(mut self, d: &'static str) -> Self {
+        self.description = d;
+        self
+    }
+
+    pub fn example(mut self, e: &'static str) -> Self {
+        self.example = Some(e);
+        self
+    }
+
+    pub fn prefix(mut self, p: &'static str) -> Self {
+        self.prefix = Some(p);
+        self
+    }
+
+    pub fn view(mut self, v: ViewMode) -> Self {
+        self.view = v;
+        self
+    }
+
+    pub fn usage_ranking(mut self) -> Self {
+        self.usage_ranking = true;
+        self
+    }
+
+    pub fn max_results(mut self, n: usize) -> Self {
+        self.max_results = n;
+        self
+    }
+
+    pub fn capabilities(mut self, caps: Vec<Capability>) -> Self {
+        self.capabilities = caps;
+        self
+    }
 }
 
 pub trait Plugin: Send + Sync {
-    fn id(&self) -> &str;
-    fn name(&self) -> &str;
-    fn description(&self) -> &str {
-        ""
-    }
-    fn example(&self) -> Option<&str> {
-        None
-    }
-    fn prefix(&self) -> Option<&str> {
-        None
-    }
+    fn meta(&self) -> PluginMeta;
     fn init(&mut self, _config: serde_json::Value) -> anyhow::Result<()> {
         Ok(())
     }
     fn search(&self, query: &str) -> Vec<PluginResult>;
-    /// Called only for results with Action::Open.
     fn execute(&self, result_id: &str) -> anyhow::Result<()>;
     fn refresh(&self) {}
     fn hints(&self) -> Vec<KeyboardHint> {
         vec![]
     }
-    /// Whether this plugin's results should be boosted by usage frequency.
-    fn supports_usage_ranking(&self) -> bool {
-        false
+    fn delete(&self, _result_id: &str) -> anyhow::Result<()> {
+        anyhow::bail!("not supported")
     }
-    /// Layout mode for this plugin's results: "list" or "grid".
-    fn view(&self) -> &str {
-        "list"
+    fn toggle_pin(&self, _result_id: &str) -> anyhow::Result<bool> {
+        anyhow::bail!("not supported")
     }
 }
 
-#[derive(Clone, Serialize)]
-pub struct SearchResponse {
-    pub results: Vec<PluginResult>,
-    pub view: String,
-}
+// ---------------------------------------------------------------------------
+// Plugin host
+// ---------------------------------------------------------------------------
+
+const DEFAULT_MAX_RESULTS: usize = 9;
 
 pub struct PluginHost {
     plugins: Vec<Box<dyn Plugin>>,
@@ -109,7 +242,7 @@ impl PluginHost {
     ) -> anyhow::Result<()> {
         for plugin in &mut self.plugins {
             let section = config
-                .get(plugin.id())
+                .get(plugin.meta().id)
                 .cloned()
                 .unwrap_or(serde_json::Value::Object(Default::default()));
             plugin.init(section)?;
@@ -122,7 +255,8 @@ impl PluginHost {
         if let Some(filter) = query.strip_prefix('?') {
             return SearchResponse {
                 results: self.help_results(filter.trim()),
-                view: "list".to_string(),
+                view: ViewMode::List,
+                capabilities: vec![],
             };
         }
 
@@ -130,13 +264,16 @@ impl PluginHost {
         if let Some(plugin) = self
             .plugins
             .iter()
-            .find(|p| p.prefix().is_some_and(|pfx| query.starts_with(pfx)))
+            .find(|p| p.meta().prefix.is_some_and(|pfx| query.starts_with(pfx)))
         {
-            let prefix = plugin.prefix().unwrap();
-            let sub_query = &query[prefix.len()..];
+            let meta = plugin.meta();
+            let sub_query = &query[meta.prefix.unwrap().len()..];
+            let mut results = plugin.search(sub_query);
+            results.truncate(meta.max_results);
             return SearchResponse {
-                results: plugin.search(sub_query),
-                view: plugin.view().to_string(),
+                results,
+                view: meta.view,
+                capabilities: meta.capabilities,
             };
         }
 
@@ -144,7 +281,7 @@ impl PluginHost {
         let mut results: Vec<PluginResult> = self
             .plugins
             .iter()
-            .filter(|p| p.prefix().is_none())
+            .filter(|p| p.meta().prefix.is_none())
             .flat_map(|p| p.search(query))
             .collect();
 
@@ -154,7 +291,7 @@ impl PluginHost {
                 if self
                     .plugins
                     .iter()
-                    .any(|p| p.id() == result.plugin_id && p.supports_usage_ranking())
+                    .any(|p| p.meta().id == result.plugin_id && p.meta().usage_ranking)
                 {
                     result.score = result
                         .score
@@ -164,10 +301,11 @@ impl PluginHost {
         }
 
         results.sort_by(|a, b| b.score.cmp(&a.score));
-        results.truncate(9);
+        results.truncate(DEFAULT_MAX_RESULTS);
         SearchResponse {
             results,
-            view: "list".to_string(),
+            view: ViewMode::List,
+            capabilities: vec![],
         }
     }
 
@@ -176,41 +314,35 @@ impl PluginHost {
         self.plugins
             .iter()
             .filter(|p| {
+                let meta = p.meta();
                 filter.is_empty()
-                    || p.name().to_lowercase().contains(&filter_lower)
-                    || p.id().to_lowercase().contains(&filter_lower)
+                    || meta.name.to_lowercase().contains(&filter_lower)
+                    || meta.id.to_lowercase().contains(&filter_lower)
             })
             .map(|p| {
-                let subtitle = p.example().map(String::from);
-                let desc = p.description();
+                let meta = p.meta();
+                let subtitle = meta.example.map(String::from);
+                let desc = meta.description;
                 let description = if desc.is_empty() {
                     None
                 } else {
                     Some(desc.to_string())
                 };
-                let action = if let Some(prefix) = p.prefix() {
+                let action = if let Some(prefix) = meta.prefix {
                     Action::SetQuery {
                         query: prefix.to_string(),
                     }
-                } else if let Some(example) = p.example() {
+                } else if let Some(example) = meta.example {
                     Action::SetQuery {
                         query: example.to_string(),
                     }
                 } else {
                     Action::default()
                 };
-                PluginResult {
-                    id: p.id().into(),
-                    plugin_id: "_help".into(),
-                    title: p.name().into(),
-                    subtitle,
-                    description,
-                    icon_path: None,
-                    score: 0,
-                    match_indices: vec![],
-                    pinned: false,
-                    action,
-                }
+                PluginResult::new("_help", meta.id, meta.name)
+                    .subtitle(subtitle.unwrap_or_default())
+                    .action(action)
+                    .description(description.unwrap_or_default())
             })
             .collect()
     }
@@ -219,13 +351,13 @@ impl PluginHost {
         let plugin = self
             .plugins
             .iter()
-            .find(|p| p.id() == plugin_id)
+            .find(|p| p.meta().id == plugin_id)
             .ok_or_else(|| anyhow::anyhow!("plugin '{}' not found", plugin_id))?;
         plugin.execute(result_id)?;
 
         // Record usage after successful execution
         if let Some(tracker) = &self.usage {
-            if plugin.supports_usage_ranking() {
+            if plugin.meta().usage_ranking {
                 tracker.record(plugin_id, result_id);
             }
         }
@@ -233,10 +365,28 @@ impl PluginHost {
         Ok(())
     }
 
+    pub fn delete(&self, plugin_id: &str, result_id: &str) -> anyhow::Result<()> {
+        let plugin = self
+            .plugins
+            .iter()
+            .find(|p| p.meta().id == plugin_id)
+            .ok_or_else(|| anyhow::anyhow!("plugin '{}' not found", plugin_id))?;
+        plugin.delete(result_id)
+    }
+
+    pub fn toggle_pin(&self, plugin_id: &str, result_id: &str) -> anyhow::Result<bool> {
+        let plugin = self
+            .plugins
+            .iter()
+            .find(|p| p.meta().id == plugin_id)
+            .ok_or_else(|| anyhow::anyhow!("plugin '{}' not found", plugin_id))?;
+        plugin.toggle_pin(result_id)
+    }
+
     pub fn plugin_hints(&self, plugin_id: &str) -> Vec<KeyboardHint> {
         self.plugins
             .iter()
-            .find(|p| p.id() == plugin_id)
+            .find(|p| p.meta().id == plugin_id)
             .map(|p| p.hints())
             .unwrap_or_default()
     }

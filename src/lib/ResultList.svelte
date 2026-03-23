@@ -1,27 +1,28 @@
 <script lang="ts">
-  import type { PluginResult } from './tauri';
+  import type { PluginResult, ViewMode } from './tauri';
   import ResultItem from './ResultItem.svelte';
 
   let {
     results,
     selectedIndex,
     onselect,
-    view = 'list',
+    view = { type: 'List' } as ViewMode,
   }: {
     results: PluginResult[];
     selectedIndex: number;
     onselect: (index: number) => void;
-    view?: 'list' | 'grid';
+    view?: ViewMode;
   } = $props();
 
   let pinnedCount = $derived(results.filter((r) => r.pinned).length);
+  let gridColumns = $derived(view.type === 'Grid' ? view.columns : 8);
 </script>
 
-{#if view === 'grid'}
+{#if view.type === 'Grid'}
   <div class="grid-scroll">
     {#if pinnedCount > 0}
       <div class="grid-section-label">Pinned</div>
-      <ul class="grid">
+      <ul class="grid" style:grid-template-columns="repeat({gridColumns}, 1fr)">
         {#each results as result, i}
           {#if result.pinned}
             <li
@@ -33,7 +34,7 @@
               aria-selected={i === selectedIndex}
               tabindex="-1"
             >
-              {#if result.action.type === 'Copy'}
+              {#if result.action?.type === 'Copy'}
                 {result.action.content}
               {:else}
                 {result.title[0]}
@@ -47,7 +48,7 @@
       {#if pinnedCount > 0}
         <div class="grid-section-label">All</div>
       {/if}
-      <ul class="grid">
+      <ul class="grid" style:grid-template-columns="repeat({gridColumns}, 1fr)">
         {#each results as result, i}
           {#if !result.pinned}
             <li
@@ -59,7 +60,7 @@
               aria-selected={i === selectedIndex}
               tabindex="-1"
             >
-              {#if result.action.type === 'Copy'}
+              {#if result.action?.type === 'Copy'}
                 {result.action.content}
               {:else}
                 {result.title[0]}
@@ -114,7 +115,6 @@
   .grid {
     list-style: none;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
     gap: 4px;
     padding: 4px 8px;
   }

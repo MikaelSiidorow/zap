@@ -10,3 +10,5 @@ anyhow = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "6"
 log = "0.4"
+nucleo-matcher = "0.3"
+specta = { version = "=2.0.0-rc.22", features = ["derive"] }

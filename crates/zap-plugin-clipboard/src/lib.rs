@@ -4,7 +4,7 @@ pub mod store;
 
 use monitor::{spawn_monitor, ClipboardConfig};
 use std::path::PathBuf;
-use zap_core::{KeyboardHint, Plugin, PluginResult};
+use zap_core::{Capability, KeyboardHint, Plugin, PluginMeta, PluginResult};
 
 pub struct ClipboardPlugin {
     db_path: PathBuf,
@@ -23,10 +23,6 @@ impl ClipboardPlugin {
             config: ClipboardConfig::default(),
         }
     }
-
-    pub fn db_path(&self) -> &PathBuf {
-        &self.db_path
-    }
 }
 
 impl Default for ClipboardPlugin {
@@ -36,28 +32,15 @@ impl Default for ClipboardPlugin {
 }
 
 impl Plugin for ClipboardPlugin {
-    fn id(&self) -> &str {
-        "clipboard"
-    }
-
-    fn name(&self) -> &str {
-        "Clipboard History"
-    }
-
-    fn description(&self) -> &str {
-        "Search and paste from clipboard history"
-    }
-
-    fn example(&self) -> Option<&str> {
-        Some("cb search term")
-    }
-
-    fn prefix(&self) -> Option<&str> {
-        Some("cb ")
+    fn meta(&self) -> PluginMeta {
+        PluginMeta::new("clipboard", "Clipboard History")
+            .description("Search and paste from clipboard history")
+            .example("cb search term")
+            .prefix("cb ")
+            .capabilities(vec![Capability::Delete, Capability::Pin, Capability::Copy])
     }
 
     fn init(&mut self, config: zap_core::serde_json::Value) -> anyhow::Result<()> {
-        // Apply config overrides
         if let Some(v) = config.get("max_age_days").and_then(|v| v.as_u64()) {
             self.config.max_age_days = v as u32;
         }
@@ -68,17 +51,13 @@ impl Plugin for ClipboardPlugin {
             self.config.poll_interval_ms = v;
         }
 
-        // Ensure data directory exists
         if let Some(parent) = self.db_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        // Ensure blob directory exists
         std::fs::create_dir_all(&self.blob_dir)?;
 
-        // Open DB and run migrations to verify schema
         let _conn = store::open_db(&self.db_path)?;
 
-        // Spawn background monitor
         spawn_monitor(
             self.db_path.clone(),
             self.blob_dir.clone(),
@@ -97,12 +76,27 @@ impl Plugin for ClipboardPlugin {
             Ok(c) => c,
             Err(_) => return vec![],
         };
-        search::search(&conn, query, self.id())
+        search::search(&conn, query, "clipboard")
     }
 
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
-        // Primary action is Paste/PasteImage, handled by the runtime
         Ok(())
+    }
+
+    fn delete(&self, result_id: &str) -> anyhow::Result<()> {
+        let id: i64 = result_id.parse()?;
+        let conn = store::open_db(&self.db_path)?;
+        let blob_path = store::delete_entry(&conn, id)?;
+        if let Some(path) = blob_path {
+            let _ = std::fs::remove_file(path);
+        }
+        Ok(())
+    }
+
+    fn toggle_pin(&self, result_id: &str) -> anyhow::Result<bool> {
+        let id: i64 = result_id.parse()?;
+        let conn = store::open_db(&self.db_path)?;
+        store::toggle_pin(&conn, id)
     }
 
     fn hints(&self) -> Vec<KeyboardHint> {

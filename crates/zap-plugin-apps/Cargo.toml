@@ -8,7 +8,6 @@ zap-core = { path = "../zap-core" }
 serde = { version = "1", features = ["derive"] }
 anyhow = "1"
 compact_str = { version = "0.8", features = ["serde"] }
-nucleo-matcher = "0.3"
 parking_lot = "0.12"
 dirs = "6"
 rmp-serde = "1"

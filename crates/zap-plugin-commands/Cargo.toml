@@ -6,5 +6,4 @@ edition = "2021"
 [dependencies]
 zap-core = { path = "../zap-core" }
 anyhow = "1"
-nucleo-matcher = "0.3"
 log = "0.4"

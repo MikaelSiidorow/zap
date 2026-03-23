@@ -1,23 +1,20 @@
-use std::path::PathBuf;
 use tauri::Manager;
 use zap_core::{KeyboardHint, PluginHost, SearchResponse};
 
 #[tauri::command]
-pub fn open_url(url: String) -> Result<(), String> {
-    open::that(url).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
+#[specta::specta]
 pub fn search(query: String, state: tauri::State<'_, PluginHost>) -> SearchResponse {
     state.search(&query)
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn plugin_hints(plugin_id: String, state: tauri::State<'_, PluginHost>) -> Vec<KeyboardHint> {
     state.plugin_hints(&plugin_id)
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn execute(
     plugin_id: String,
     result_id: String,
@@ -29,10 +26,40 @@ pub fn execute(
 }
 
 #[tauri::command]
+#[specta::specta]
+pub fn delete_result(
+    plugin_id: String,
+    result_id: String,
+    state: tauri::State<'_, PluginHost>,
+) -> Result<(), String> {
+    state
+        .delete(&plugin_id, &result_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn toggle_pin(
+    plugin_id: String,
+    result_id: String,
+    state: tauri::State<'_, PluginHost>,
+) -> Result<bool, String> {
+    state
+        .toggle_pin(&plugin_id, &result_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_url(url: String) -> Result<(), String> {
+    open::that(url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn copy_to_clipboard(text: String) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(text).map_err(|e| e.to_string())?;
-    // Keep clipboard alive so clipboard manager can read contents (X11 ownership model)
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(1));
         drop(clipboard);
@@ -41,17 +68,11 @@ pub fn copy_to_clipboard(text: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn hide_window(app: tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
-}
-
-fn clipboard_db_path() -> PathBuf {
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("zap")
-        .join("clipboard.db")
 }
 
 fn simulate_paste() {
@@ -76,6 +97,7 @@ fn simulate_paste() {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(text).map_err(|e| e.to_string())?;
@@ -85,7 +107,6 @@ pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), Str
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(80));
         simulate_paste();
-        // Keep clipboard alive so clipboard manager can read contents
         std::thread::sleep(std::time::Duration::from_millis(500));
         drop(clipboard);
     });
@@ -93,6 +114,7 @@ pub fn paste_to_frontmost(text: String, app: tauri::AppHandle) -> Result<(), Str
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn paste_image_to_frontmost(path: String, app: tauri::AppHandle) -> Result<(), String> {
     let img = image::open(&path).map_err(|e| e.to_string())?;
     let rgba = img.to_rgba8();
@@ -118,6 +140,7 @@ pub fn paste_image_to_frontmost(path: String, app: tauri::AppHandle) -> Result<(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
     let img = image::open(&path).map_err(|e| e.to_string())?;
     let rgba = img.to_rgba8();
@@ -134,29 +157,4 @@ pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
         drop(clipboard);
     });
     Ok(())
-}
-
-#[tauri::command]
-pub fn clipboard_delete(id: i64) -> Result<(), String> {
-    let db_path = clipboard_db_path();
-    let conn = zap_plugin_clipboard::store::open_db(&db_path).map_err(|e| e.to_string())?;
-    let blob_path =
-        zap_plugin_clipboard::store::delete_entry(&conn, id).map_err(|e| e.to_string())?;
-    // Clean up blob file if this was an image entry
-    if let Some(path) = blob_path {
-        let _ = std::fs::remove_file(path);
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn clipboard_toggle_pin(id: i64) -> Result<bool, String> {
-    let db_path = clipboard_db_path();
-    let conn = zap_plugin_clipboard::store::open_db(&db_path).map_err(|e| e.to_string())?;
-    zap_plugin_clipboard::store::toggle_pin(&conn, id).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn emoji_toggle_pin(name: String) -> bool {
-    zap_plugin_emoji::pins::toggle_pin(&name)
 }

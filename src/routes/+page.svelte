@@ -3,12 +3,13 @@
   import { onMount, onDestroy } from 'svelte';
   import SearchBar from '$lib/SearchBar.svelte';
   import ResultList from '$lib/ResultList.svelte';
-  import { search, execute, copyToClipboard, hideWindow, openUrl, pasteToFrontmost, pasteImageToFrontmost, copyImageToClipboard, clipboardDelete, clipboardTogglePin, emojiTogglePin, pluginHints, type PluginResult, type KeyboardHint } from '$lib/tauri';
+  import { commands, type PluginResult, type KeyboardHint, type ViewMode, type Capability } from '$lib/tauri';
   import { handleKey } from '$lib/keys';
 
   let query = $state('');
   let results = $state<PluginResult[]>([]);
-  let view = $state<'list' | 'grid'>('list');
+  let view = $state<ViewMode>({ type: 'List' });
+  let capabilities = $state<Capability[]>([]);
   let selectedIndex = $state(0);
   let feedback = $state<string | null>(null);
   let hints = $state<KeyboardHint[]>([]);
@@ -16,21 +17,21 @@
 
   $effect(() => {
     const q = query;
-    search(q).then((r) => {
+    commands.search(q).then((r) => {
       if (query === q) {
         results = r.results;
         view = r.view;
+        capabilities = r.capabilities;
         selectedIndex = 0;
       }
     });
   });
 
-  // Fetch hints when active plugin changes
   let activePluginId = $derived(results[0]?.plugin_id ?? null);
   $effect(() => {
     const pid = activePluginId;
     if (pid) {
-      pluginHints(pid).then((h) => { hints = h; });
+      commands.pluginHints(pid).then((h) => { hints = h; });
     } else {
       hints = [];
     }
@@ -40,7 +41,8 @@
     unlisten = await listen('show-window', () => {
       query = '';
       results = [];
-      view = 'list';
+      view = { type: 'List' };
+      capabilities = [];
       selectedIndex = 0;
       feedback = null;
     });
@@ -53,41 +55,44 @@
   function reset() {
     query = '';
     results = [];
-    view = 'list';
+    view = { type: 'List' };
+    capabilities = [];
     selectedIndex = 0;
     feedback = null;
   }
 
   function hide() {
     reset();
-    hideWindow();
+    commands.hideWindow();
   }
 
   async function activateResult(result: PluginResult) {
-    switch (result.action.type) {
+    const action = result.action;
+    if (!action) return;
+    switch (action.type) {
       case 'Copy':
-        await copyToClipboard(result.action.content);
+        await commands.copyToClipboard(action.content);
         feedback = 'Copied to clipboard';
         setTimeout(hide, 600);
         break;
       case 'Paste':
-        await pasteToFrontmost(result.action.content);
+        await commands.pasteToFrontmost(action.content);
         reset();
         break;
       case 'PasteImage':
-        await pasteImageToFrontmost(result.action.path);
+        await commands.pasteImageToFrontmost(action.path);
         reset();
         break;
       case 'SetQuery':
-        query = result.action.query;
+        query = action.query;
         break;
       case 'OpenUrl':
-        await openUrl(result.action.url);
+        await commands.openUrl(action.url);
         hide();
         break;
       case 'Open':
       default:
-        await execute(result.plugin_id, result.id);
+        await commands.execute(result.plugin_id, result.id);
         hide();
         break;
     }
@@ -95,10 +100,11 @@
 
   async function refreshSearch() {
     const q = query;
-    const r = await search(q);
+    const r = await commands.search(q);
     if (query === q) {
       results = r.results;
       view = r.view;
+      capabilities = r.capabilities;
       if (selectedIndex >= results.length) {
         selectedIndex = Math.max(0, results.length - 1);
       }
@@ -106,15 +112,17 @@
   }
 
   async function copyResult(result: PluginResult) {
-    switch (result.action.type) {
+    const action = result.action;
+    if (!action) return;
+    switch (action.type) {
       case 'Paste':
       case 'Copy':
-        await copyToClipboard(result.action.content);
+        await commands.copyToClipboard(action.content);
         feedback = 'Copied to clipboard';
         setTimeout(hide, 600);
         break;
       case 'PasteImage':
-        await copyImageToClipboard(result.action.path);
+        await commands.copyImageToClipboard(action.path);
         feedback = 'Image copied to clipboard';
         setTimeout(hide, 600);
         break;
@@ -125,8 +133,7 @@
 
   function handleKeydown(event: KeyboardEvent) {
     const selectedResult = results[selectedIndex] ?? null;
-    const pluginId = selectedResult?.plugin_id ?? null;
-    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, event.shiftKey, pluginId, view);
+    const action = handleKey(event.key, selectedIndex, results.length, event.ctrlKey, event.metaKey, event.shiftKey, capabilities, view);
     if (!action) return;
 
     event.preventDefault();
@@ -149,17 +156,12 @@
         break;
       case 'delete':
         if (selectedResult) {
-          clipboardDelete(Number(selectedResult.id)).then(refreshSearch);
+          commands.deleteResult(selectedResult.plugin_id, selectedResult.id).then(refreshSearch);
         }
         break;
       case 'toggle_pin':
         if (selectedResult) {
-          const pid = selectedResult.plugin_id;
-          if (pid === 'clipboard') {
-            clipboardTogglePin(Number(selectedResult.id)).then(refreshSearch);
-          } else if (pid === 'emoji') {
-            emojiTogglePin(selectedResult.id).then(refreshSearch);
-          }
+          commands.togglePin(selectedResult.plugin_id, selectedResult.id).then(refreshSearch);
         }
         break;
     }

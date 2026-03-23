@@ -2,29 +2,16 @@ mod eval;
 mod timezone;
 mod units;
 
-use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
+use zap_core::{Action, KeyboardHint, Plugin, PluginMeta, PluginResult};
 
 pub struct CalcPlugin;
 
 impl Plugin for CalcPlugin {
-    fn id(&self) -> &str {
-        "calc"
-    }
-
-    fn name(&self) -> &str {
-        "Calculator"
-    }
-
-    fn description(&self) -> &str {
-        "Math expressions and timezone conversions"
-    }
-
-    fn example(&self) -> Option<&str> {
-        Some("= 2+2 or = 9am tokyo to new york")
-    }
-
-    fn prefix(&self) -> Option<&str> {
-        Some("=")
+    fn meta(&self) -> PluginMeta {
+        PluginMeta::new("calc", "Calculator")
+            .description("Math expressions and timezone conversions")
+            .example("= 2+2 or = 9am tokyo to new york")
+            .prefix("=")
     }
 
     fn search(&self, query: &str) -> Vec<PluginResult> {
@@ -33,64 +20,36 @@ impl Plugin for CalcPlugin {
             return vec![];
         }
 
-        // Try math evaluation first
         if let Ok(value) = eval::evaluate(input) {
             let formatted = format_number(value);
-            return vec![PluginResult {
-                id: "result".into(),
-                plugin_id: "calc".into(),
-                title: formatted.clone(),
-                subtitle: Some(format!("= {input}")),
-                description: None,
-                icon_path: None,
-                score: 100,
-                match_indices: vec![],
-                pinned: false,
-                action: Action::Copy { content: formatted },
-            }];
+            return vec![PluginResult::new("calc", "result", &formatted)
+                .subtitle(format!("= {input}"))
+                .score(100)
+                .action(Action::Copy { content: formatted })];
         }
 
-        // Try unit conversion
         if let Some(unit_result) = units::try_convert(input) {
-            return vec![PluginResult {
-                id: "unit_result".into(),
-                plugin_id: "calc".into(),
-                title: unit_result.title.clone(),
-                subtitle: Some(unit_result.subtitle),
-                description: None,
-                icon_path: None,
-                score: 100,
-                match_indices: vec![],
-                pinned: false,
-                action: Action::Copy {
+            return vec![PluginResult::new("calc", "unit_result", &unit_result.title)
+                .subtitle(unit_result.subtitle)
+                .score(100)
+                .action(Action::Copy {
                     content: unit_result.title,
-                },
-            }];
+                })];
         }
 
-        // Try timezone conversion
         if let Some(tz_result) = timezone::try_convert(input) {
-            return vec![PluginResult {
-                id: "tz_result".into(),
-                plugin_id: "calc".into(),
-                title: tz_result.title.clone(),
-                subtitle: Some(tz_result.subtitle),
-                description: None,
-                icon_path: None,
-                score: 100,
-                match_indices: vec![],
-                pinned: false,
-                action: Action::Copy {
+            return vec![PluginResult::new("calc", "tz_result", &tz_result.title)
+                .subtitle(tz_result.subtitle)
+                .score(100)
+                .action(Action::Copy {
                     content: tz_result.title,
-                },
-            }];
+                })];
         }
 
         vec![]
     }
 
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
-        // Not called — calc results use Action::Copy, handled by the runtime
         Ok(())
     }
 
@@ -113,11 +72,9 @@ fn format_number(value: f64) -> String {
             "-Infinity".into()
         };
     }
-    // If integer-valued, display without decimal point
     if value == value.trunc() && value.abs() < 1e15 {
         return format!("{}", value as i64);
     }
-    // Up to 10 significant digits, trim trailing zeros
     let s = format!("{:.10e}", value);
     let parts: Vec<&str> = s.split('e').collect();
     if parts.len() == 2 {

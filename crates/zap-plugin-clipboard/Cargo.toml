@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 zap-core = { path = "../zap-core" }
 rusqlite = { version = "0.32", features = ["bundled"] }
-nucleo-matcher = "0.3"
 dirs = "6"
 anyhow = "1"
 log = "0.4"

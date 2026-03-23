@@ -1,9 +1,7 @@
 use crate::store::{recent_entries, search_candidates, ClipboardEntry};
-use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization};
-use nucleo_matcher::{Config, Matcher, Utf32String};
 use rusqlite::Connection;
 use time::OffsetDateTime;
-use zap_core::{Action, PluginResult};
+use zap_core::{fuzzy_match, Action, PluginResult};
 
 fn first_line(content: &str, max_len: usize) -> String {
     let line = content.lines().next().unwrap_or(content);
@@ -45,35 +43,33 @@ fn subtitle_for(entry: &ClipboardEntry) -> String {
 }
 
 fn entry_to_result(entry: &ClipboardEntry, plugin_id: &str) -> PluginResult {
+    let title = first_line(&entry.content, 80);
+    let subtitle = subtitle_for(entry);
+
     if entry.content_type == "image" {
         let blob_path = entry.blob_path.clone().unwrap_or_default();
-        PluginResult {
-            id: entry.id.to_string(),
-            plugin_id: plugin_id.to_string(),
-            title: first_line(&entry.content, 80),
-            subtitle: Some(subtitle_for(entry)),
-            description: None,
-            icon_path: Some(blob_path.clone()),
-            score: 0,
-            match_indices: vec![],
-            pinned: entry.pinned,
-            action: Action::PasteImage { path: blob_path },
+        let mut r = PluginResult::new(plugin_id, entry.id.to_string(), title)
+            .subtitle(subtitle)
+            .action(Action::PasteImage {
+                path: blob_path.clone(),
+            });
+        if entry.pinned {
+            r = r.pinned();
         }
+        if !blob_path.is_empty() {
+            r = r.icon(blob_path);
+        }
+        r
     } else {
-        PluginResult {
-            id: entry.id.to_string(),
-            plugin_id: plugin_id.to_string(),
-            title: first_line(&entry.content, 80),
-            subtitle: Some(subtitle_for(entry)),
-            description: None,
-            icon_path: None,
-            score: 0,
-            match_indices: vec![],
-            pinned: entry.pinned,
-            action: Action::Paste {
+        let mut r = PluginResult::new(plugin_id, entry.id.to_string(), title)
+            .subtitle(subtitle)
+            .action(Action::Paste {
                 content: entry.content.clone(),
-            },
+            });
+        if entry.pinned {
+            r = r.pinned();
         }
+        r
     }
 }
 
@@ -91,25 +87,12 @@ pub fn search(conn: &Connection, query: &str, plugin_id: &str) -> Vec<PluginResu
         return vec![];
     }
 
-    let mut matcher = Matcher::new(Config::DEFAULT);
-    let atom = Atom::new(
-        query,
-        CaseMatching::Smart,
-        Normalization::Smart,
-        AtomKind::Fuzzy,
-        false,
-    );
-
     let mut scored: Vec<(u32, &ClipboardEntry, Vec<u32>)> = candidates
         .iter()
         .filter_map(|entry| {
             let haystack_text = first_line(&entry.content, 200);
-            let haystack = Utf32String::from(haystack_text.as_str());
-            let mut indices = Vec::new();
-            let score = atom.indices(haystack.slice(..), &mut matcher, &mut indices)?;
-            indices.sort_unstable();
-            indices.dedup();
-            Some((score as u32, entry, indices))
+            let m = fuzzy_match(query, &haystack_text)?;
+            Some((m.score, entry, m.indices))
         })
         .collect();
 
@@ -119,10 +102,9 @@ pub fn search(conn: &Connection, query: &str, plugin_id: &str) -> Vec<PluginResu
     scored
         .into_iter()
         .map(|(score, entry, indices)| {
-            let mut result = entry_to_result(entry, plugin_id);
-            result.score = score;
-            result.match_indices = indices;
-            result
+            entry_to_result(entry, plugin_id)
+                .score(score)
+                .indices(indices)
         })
         .collect()
 }
@@ -147,7 +129,6 @@ mod tests {
 
         let results = search(&conn, "", "clipboard");
         assert_eq!(results.len(), 2);
-        // Both inserted in same second, so order is by id DESC (beta has higher id)
         assert_eq!(results[0].title, "beta");
     }
 

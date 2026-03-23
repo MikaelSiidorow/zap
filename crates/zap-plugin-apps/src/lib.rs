@@ -3,7 +3,7 @@ pub mod platform;
 mod search;
 
 use indexer::AppIndex;
-use zap_core::{Plugin, PluginResult};
+use zap_core::{Plugin, PluginMeta, PluginResult};
 
 pub struct AppsPlugin {
     index: AppIndex,
@@ -25,20 +25,11 @@ impl Default for AppsPlugin {
 }
 
 impl Plugin for AppsPlugin {
-    fn id(&self) -> &str {
-        "apps"
-    }
-
-    fn name(&self) -> &str {
-        "Applications"
-    }
-
-    fn description(&self) -> &str {
-        "Search and launch installed applications"
-    }
-
-    fn example(&self) -> Option<&str> {
-        Some("firefox")
+    fn meta(&self) -> PluginMeta {
+        PluginMeta::new("apps", "Applications")
+            .description("Search and launch installed applications")
+            .example("firefox")
+            .usage_ranking()
     }
 
     fn init(&mut self, _config: zap_core::serde_json::Value) -> anyhow::Result<()> {
@@ -48,7 +39,7 @@ impl Plugin for AppsPlugin {
 
     fn search(&self, query: &str) -> Vec<PluginResult> {
         let apps = self.index.apps();
-        search::search(query, &apps, self.id())
+        search::search(query, &apps, "apps")
     }
 
     fn execute(&self, result_id: &str) -> anyhow::Result<()> {
@@ -61,9 +52,5 @@ impl Plugin for AppsPlugin {
 
     fn refresh(&self) {
         self.index.refresh();
-    }
-
-    fn supports_usage_ranking(&self) -> bool {
-        true
     }
 }

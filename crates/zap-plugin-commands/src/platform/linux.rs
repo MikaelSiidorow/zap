@@ -24,9 +24,7 @@ impl super::Platform for LinuxPlatform {
                     .spawn()?;
             }
             "empty-trash" => {
-                Command::new("gio")
-                    .args(["trash", "--empty"])
-                    .spawn()?;
+                Command::new("gio").args(["trash", "--empty"]).spawn()?;
             }
             _ => anyhow::bail!("unknown command: {command_id}"),
         }

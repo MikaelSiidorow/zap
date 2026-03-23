@@ -2,11 +2,10 @@ mod data;
 pub mod pins;
 
 use data::EMOJIS;
-use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization};
-use nucleo_matcher::{Config, Matcher, Utf32String};
-use zap_core::{Action, KeyboardHint, Plugin, PluginResult};
+use zap_core::{
+    fuzzy_match, Action, Capability, KeyboardHint, Plugin, PluginMeta, PluginResult, ViewMode,
+};
 
-const PLUGIN_ID: &str = "emoji";
 const MAX_GRID_RESULTS: usize = 256;
 
 pub struct EmojiPlugin;
@@ -16,21 +15,20 @@ impl EmojiPlugin {
         Self
     }
 
-    fn make_result(emoji: &data::Emoji, pinned: bool) -> PluginResult {
-        PluginResult {
-            id: emoji.name.to_string(),
-            plugin_id: PLUGIN_ID.to_string(),
-            title: format!("{} {}", emoji.character, emoji.name),
-            subtitle: Some(emoji.category.to_string()),
-            description: None,
-            icon_path: None,
-            score: 0,
-            match_indices: vec![],
-            pinned,
-            action: Action::Copy {
-                content: emoji.character.to_string(),
-            },
+    fn make_result(emoji: &data::Emoji, is_pinned: bool) -> PluginResult {
+        let mut r = PluginResult::new(
+            "emoji",
+            emoji.name,
+            format!("{} {}", emoji.character, emoji.name),
+        )
+        .subtitle(emoji.category)
+        .action(Action::Copy {
+            content: emoji.character.to_string(),
+        });
+        if is_pinned {
+            r = r.pinned();
         }
+        r
     }
 }
 
@@ -41,46 +39,29 @@ impl Default for EmojiPlugin {
 }
 
 impl Plugin for EmojiPlugin {
-    fn id(&self) -> &str {
-        PLUGIN_ID
-    }
-
-    fn name(&self) -> &str {
-        "Emoji Picker"
-    }
-
-    fn description(&self) -> &str {
-        "Search and copy emojis"
-    }
-
-    fn example(&self) -> Option<&str> {
-        Some(":thumbs up")
-    }
-
-    fn prefix(&self) -> Option<&str> {
-        Some(":")
-    }
-
-    fn view(&self) -> &str {
-        "grid"
+    fn meta(&self) -> PluginMeta {
+        PluginMeta::new("emoji", "Emoji Picker")
+            .description("Search and copy emojis")
+            .example(":thumbs up")
+            .prefix(":")
+            .view(ViewMode::Grid { columns: 8 })
+            .max_results(MAX_GRID_RESULTS)
+            .capabilities(vec![Capability::Pin])
     }
 
     fn search(&self, query: &str) -> Vec<PluginResult> {
         let query = query.trim();
         let pinned_set = pins::load_pins();
 
-        // Empty query: show pinned first, then popular emojis
         if query.is_empty() {
             let mut results = Vec::new();
 
-            // Pinned emojis first
             for emoji in EMOJIS {
                 if pinned_set.contains(emoji.name) {
                     results.push(Self::make_result(emoji, true));
                 }
             }
 
-            // Fill remaining slots with non-pinned emojis
             for emoji in EMOJIS {
                 if results.len() >= MAX_GRID_RESULTS {
                     break;
@@ -93,27 +74,13 @@ impl Plugin for EmojiPlugin {
             return results;
         }
 
-        let mut matcher = Matcher::new(Config::DEFAULT);
-        let atom = Atom::new(
-            query,
-            CaseMatching::Smart,
-            Normalization::Smart,
-            AtomKind::Fuzzy,
-            false,
-        );
-
         let mut results: Vec<PluginResult> = EMOJIS
             .iter()
             .filter_map(|emoji| {
                 let search_text = format!("{} {}", emoji.name, emoji.keywords);
-                let haystack = Utf32String::from(search_text.as_str());
-                let mut indices = Vec::new();
-                let score = atom.indices(haystack.slice(..), &mut matcher, &mut indices)?;
-
+                let m = fuzzy_match(query, &search_text)?;
                 let is_pinned = pinned_set.contains(emoji.name);
-                let mut result = Self::make_result(emoji, is_pinned);
-                result.score = score as u32;
-                Some(result)
+                Some(Self::make_result(emoji, is_pinned).score(m.score))
             })
             .collect();
 
@@ -124,6 +91,10 @@ impl Plugin for EmojiPlugin {
 
     fn execute(&self, _result_id: &str) -> anyhow::Result<()> {
         Ok(())
+    }
+
+    fn toggle_pin(&self, result_id: &str) -> anyhow::Result<bool> {
+        Ok(pins::toggle_pin(result_id))
     }
 
     fn hints(&self) -> Vec<KeyboardHint> {
@@ -192,9 +163,10 @@ mod tests {
     #[test]
     fn plugin_metadata() {
         let p = plugin();
-        assert_eq!(p.id(), "emoji");
-        assert_eq!(p.prefix(), Some(":"));
-        assert_eq!(p.view(), "grid");
+        let meta = p.meta();
+        assert_eq!(meta.id, "emoji");
+        assert_eq!(meta.prefix, Some(":"));
+        assert!(matches!(meta.view, ViewMode::Grid { columns: 8 }));
     }
 
     #[test]
