@@ -32,15 +32,30 @@ fn save_cache(apps: &[AppEntry]) {
     }
 }
 
+fn apps_changed(current: &[AppEntry], new: &[AppEntry]) -> bool {
+    current.len() != new.len()
+        || current
+            .iter()
+            .zip(new.iter())
+            .any(|(a, b)| a.id != b.id || a.name != b.name || a.exec_path != b.exec_path)
+}
+
+/// Update `apps` with `new_apps`, saving cache if changed.
+fn apply_update(apps: &RwLock<Vec<AppEntry>>, new_apps: Vec<AppEntry>) {
+    let changed = apps_changed(&apps.read(), &new_apps);
+    if changed {
+        save_cache(&new_apps);
+    }
+    *apps.write() = new_apps;
+}
+
 impl AppIndex {
     pub fn new(platform: Arc<dyn Platform>) -> Self {
-        let apps = if let Some(cached) = load_cache() {
-            cached
-        } else {
+        let apps = load_cache().unwrap_or_else(|| {
             let discovered = platform.discover_apps();
             save_cache(&discovered);
             discovered
-        };
+        });
 
         Self {
             apps: Arc::new(RwLock::new(apps)),
@@ -60,21 +75,9 @@ impl AppIndex {
         self.platform.as_ref()
     }
 
-    /// Perform a re-scan and update the index. Saves cache if changed.
     pub fn refresh(&self) {
         let new_apps = self.platform.discover_apps();
-        let changed = {
-            let current = self.apps.read();
-            current.len() != new_apps.len()
-                || current
-                    .iter()
-                    .zip(new_apps.iter())
-                    .any(|(a, b)| a.id != b.id || a.name != b.name || a.exec_path != b.exec_path)
-        };
-        if changed {
-            save_cache(&new_apps);
-        }
-        *self.apps.write() = new_apps;
+        apply_update(&self.apps, new_apps);
     }
 
     pub fn spawn_refresh_task(&self) {
@@ -82,34 +85,12 @@ impl AppIndex {
         let platform = self.platform.clone();
         std::thread::spawn(move || {
             // If we loaded from cache, do an immediate background rescan
-            let new_apps = platform.discover_apps();
-            {
-                let current = apps.read();
-                let changed = current.len() != new_apps.len()
-                    || current.iter().zip(new_apps.iter()).any(|(a, b)| {
-                        a.id != b.id || a.name != b.name || a.exec_path != b.exec_path
-                    });
-                if changed {
-                    save_cache(&new_apps);
-                }
-            }
-            *apps.write() = new_apps;
+            apply_update(&apps, platform.discover_apps());
 
             // Then periodic rescans
             loop {
                 std::thread::sleep(std::time::Duration::from_secs(30));
-                let new_apps = platform.discover_apps();
-                {
-                    let current = apps.read();
-                    let changed = current.len() != new_apps.len()
-                        || current.iter().zip(new_apps.iter()).any(|(a, b)| {
-                            a.id != b.id || a.name != b.name || a.exec_path != b.exec_path
-                        });
-                    if changed {
-                        save_cache(&new_apps);
-                    }
-                }
-                *apps.write() = new_apps;
+                apply_update(&apps, platform.discover_apps());
             }
         });
     }

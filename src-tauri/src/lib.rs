@@ -33,8 +33,8 @@ pub const IPC_PORT: u16 = 52583;
 fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64
+        .map(|d| d.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------

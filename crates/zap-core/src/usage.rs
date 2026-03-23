@@ -31,7 +31,7 @@ impl UsageTracker {
 
     #[cfg(test)]
     fn open_in_memory() -> Self {
-        Self::init(Connection::open_in_memory().unwrap()).unwrap()
+        Self::init(Connection::open_in_memory().expect("in-memory DB")).expect("init in-memory DB")
     }
 
     fn init(conn: Connection) -> anyhow::Result<Self> {
@@ -53,7 +53,10 @@ impl UsageTracker {
 
     pub fn record(&self, plugin_id: &str, item_id: &str) {
         let now = now_secs();
-        let conn = self.conn.lock().expect("usage db lock poisoned");
+        let Ok(conn) = self.conn.lock() else {
+            log::warn!("Usage DB lock poisoned, skipping record");
+            return;
+        };
         if let Err(e) = conn.execute(
             "INSERT INTO usage (plugin_id, item_id, use_count, last_used)
              VALUES (?1, ?2, 1, ?3)
@@ -67,7 +70,9 @@ impl UsageTracker {
     }
 
     pub fn get_bonus(&self, plugin_id: &str, item_id: &str) -> u32 {
-        let conn = self.conn.lock().expect("usage db lock poisoned");
+        let Ok(conn) = self.conn.lock() else {
+            return 0;
+        };
         conn.query_row(
             "SELECT use_count, last_used FROM usage WHERE plugin_id = ?1 AND item_id = ?2",
             rusqlite::params![plugin_id, item_id],
@@ -91,8 +96,8 @@ fn compute_bonus(use_count: i64, last_used: i64) -> u32 {
 fn now_secs() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64
+        .map(|d| d.as_secs().min(i64::MAX as u64) as i64)
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -109,9 +114,7 @@ mod tests {
     fn record_and_retrieve() {
         let tracker = UsageTracker::open_in_memory();
         tracker.record("apps", "firefox");
-        let bonus = tracker.get_bonus("apps", "firefox");
-        // 1 use just now → bonus of 1
-        assert_eq!(bonus, 1);
+        assert_eq!(tracker.get_bonus("apps", "firefox"), 1);
     }
 
     #[test]
@@ -120,8 +123,7 @@ mod tests {
         for _ in 0..10 {
             tracker.record("apps", "firefox");
         }
-        let bonus = tracker.get_bonus("apps", "firefox");
-        assert_eq!(bonus, 10);
+        assert_eq!(tracker.get_bonus("apps", "firefox"), 10);
     }
 
     #[test]
@@ -130,8 +132,7 @@ mod tests {
         for _ in 0..100 {
             tracker.record("apps", "firefox");
         }
-        let bonus = tracker.get_bonus("apps", "firefox");
-        assert_eq!(bonus, MAX_USAGE_BONUS);
+        assert_eq!(tracker.get_bonus("apps", "firefox"), MAX_USAGE_BONUS);
     }
 
     #[test]
@@ -157,10 +158,8 @@ mod tests {
 
     #[test]
     fn decay_reduces_bonus() {
-        // Test the pure computation function with a stale timestamp
         let one_week_ago = now_secs() - 7 * 86400;
         let bonus = compute_bonus(10, one_week_ago);
-        // After 7 days (half of 14-day half-life): 10 * 0.707 ≈ 7
         assert!(bonus < 10, "bonus should decay: got {bonus}");
         assert!(bonus > 0, "bonus should still be positive: got {bonus}");
 

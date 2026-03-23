@@ -241,10 +241,7 @@ impl PluginHost {
         config: &std::collections::HashMap<String, serde_json::Value>,
     ) -> anyhow::Result<()> {
         for plugin in &mut self.plugins {
-            let section = config
-                .get(plugin.meta().id)
-                .cloned()
-                .unwrap_or(serde_json::Value::Object(Default::default()));
+            let section = config.get(plugin.meta().id).cloned().unwrap_or_default();
             plugin.init(section)?;
         }
         Ok(())
