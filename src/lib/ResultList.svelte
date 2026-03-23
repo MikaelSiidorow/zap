@@ -33,7 +33,7 @@
 <style>
   .result-list {
     list-style: none;
-    padding: 4px 0;
+    padding: var(--space-2) 0;
     flex: 1;
     min-height: 0;
     overflow-y: auto;

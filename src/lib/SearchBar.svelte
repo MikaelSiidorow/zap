@@ -31,8 +31,8 @@
 <style>
   input {
     width: 100%;
-    padding: 16px 20px;
-    font-size: 20px;
+    padding: var(--space-6) var(--space-7);
+    font-size: var(--text-xl);
     font-weight: 400;
     background: transparent;
     border: none;

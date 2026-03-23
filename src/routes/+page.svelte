@@ -151,18 +151,18 @@
     inset: 0;
     display: flex;
     justify-content: center;
-    padding-top: 8px;
+    padding-top: var(--space-4);
   }
 
   main {
     display: flex;
     flex-direction: column;
     background: var(--bg);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     overflow: hidden;
-    width: 680px;
-    max-height: calc(100vh - 16px);
+    width: var(--launcher-width);
+    max-height: calc(100vh - var(--space-6));
     align-self: flex-start;
   }
 
@@ -172,28 +172,28 @@
   }
 
   .feedback {
-    padding: 16px 20px;
-    font-size: 14px;
+    padding: var(--space-6) var(--space-7);
+    font-size: var(--text-md);
     color: var(--text-muted);
     text-align: center;
   }
 
   .hints {
     display: flex;
-    gap: 16px;
-    padding: 6px 16px;
+    gap: var(--space-6);
+    padding: var(--space-3) var(--space-6);
     border-top: 1px solid var(--border);
-    font-size: 11px;
+    font-size: var(--text-xs);
     color: var(--text-muted);
   }
 
   .hints kbd {
     font-family: inherit;
-    font-size: 10px;
-    padding: 1px 4px;
-    border-radius: 3px;
+    font-size: var(--text-2xs);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: var(--bg-secondary, rgba(255, 255, 255, 0.06));
-    margin-right: 4px;
+    background: var(--bg-secondary);
+    margin-right: var(--space-2);
   }
 </style>

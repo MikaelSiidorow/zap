@@ -82,8 +82,8 @@
   }
 
   .section-label {
-    padding: 6px 12px 2px;
-    font-size: 11px;
+    padding: var(--space-3) var(--space-5) var(--space-1);
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -93,8 +93,8 @@
   .grid {
     list-style: none;
     display: grid;
-    gap: 4px;
-    padding: 4px 8px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
   }
 
   .cell {
@@ -102,10 +102,10 @@
     align-items: center;
     justify-content: center;
     aspect-ratio: 1;
-    font-size: 32px;
-    border-radius: 8px;
+    font-size: 2rem;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: background 0.1s;
+    transition: background var(--duration-fast);
     user-select: none;
   }
 

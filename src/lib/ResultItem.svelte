@@ -63,8 +63,8 @@
   .result-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 20px;
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-7);
     cursor: pointer;
   }
 
@@ -74,22 +74,22 @@
   }
 
   .icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    border-radius: var(--radius-md);
     object-fit: contain;
     flex-shrink: 0;
   }
 
   .icon-placeholder {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    border-radius: var(--radius-md);
     background: var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -99,37 +99,37 @@
   .info {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--space-4);
     min-width: 0;
   }
 
   .info.stacked {
     flex-direction: column;
     align-items: stretch;
-    gap: 2px;
+    gap: var(--space-1);
   }
 
   .name {
-    font-size: 15px;
+    font-size: var(--text-lg);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .subtitle {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     white-space: nowrap;
     flex-shrink: 0;
   }
 
   .info.stacked .subtitle {
-    font-size: 13px;
-    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: var(--text-base);
+    font-family: var(--font-mono);
   }
 
   .description {
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
