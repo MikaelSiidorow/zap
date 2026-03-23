@@ -2,44 +2,43 @@
 
 What needs to happen, in order, to make Zap a real Raycast competitor.
 
-## P0 — Make it daily-drivable
+## P0 — Make it daily-drivable ✅
 
-These two features are what make people stay. Without clipboard history, Zap is just an app launcher. Without usage ranking, it feels dumb.
+Both P0 features are complete.
 
-### Clipboard History (`zap-plugin-clipboard`)
+### Clipboard History (`zap-plugin-clipboard`) ✅
 
-The single most important feature after app launch. Once you have clipboard history, you physically cannot go back to a launcher without it.
+- ✅ Background clipboard monitoring (poll-based)
+- ✅ SQLite storage with WAL mode
+- ✅ Text and image support
+- ✅ Fuzzy search across clipboard entries
+- ✅ Paste into frontmost app on Enter (`Action::Paste`)
+- ✅ Pin/favorite entries
+- ✅ Configurable retention (`max_age_days`, `max_entries` via config.toml)
+- ✅ Sensitive content detection (PEM keys, OTP URIs, PIN codes)
+- ✅ Prefix: `cb `
 
-- Background clipboard monitoring (poll or native events)
-- SQLite storage (introduces shared storage layer for all plugins)
-- Text and image support
-- Search across clipboard entries
-- Paste into frontmost app on Enter (new `Action::Paste`)
-- Pin/favorite entries
-- Configurable retention (default: 30 days, max entries)
-- Sensitive content detection (don't store passwords from password managers)
-- Prefix: `cb` or dedicated hotkey
+### Usage-Based Ranking ✅
 
-### Usage-Based Ranking
-
-Apps you launch daily should be at the top. This is small code, big daily impact.
-
-- SQLite counter: increment on every `Action::Open` execute
-- Blend usage frequency into search score (e.g., `fuzzy_score + usage_bonus`)
-- Decay over time (recent usage weights more than old)
-- Per-plugin opt-in (apps yes, calc no)
+- ✅ SQLite counter with exponential time decay (14-day half-life)
+- ✅ Blended into search score (`fuzzy_score + usage_bonus`, capped at 50)
+- ✅ Per-plugin opt-in via `PluginMeta::usage_ranking()`
 
 ## P1 — Essential daily features
 
 Features that make you stop reaching for other tools entirely.
 
-### Emoji Picker (`zap-plugin-emoji`)
+### Emoji Picker (`zap-plugin-emoji`) ✅
 
-Quick win. Ship a bundled emoji dataset, fuzzy search, copy on Enter. Prefix: `:` (like Slack). Skin tone support via modifier.
+- ✅ ~400 bundled emojis, fuzzy search, copy on Enter
+- ✅ Grid view (8 columns) with pinned/unpinned sections
+- ✅ Prefix: `:`
 
-### System Commands (`zap-plugin-commands`)
+### System Commands (`zap-plugin-commands`) ✅
 
-Lock screen, sleep, restart, empty trash, toggle dark mode, logout. These are the commands people run from Raycast 5x/day. Small plugin, high value. No prefix — show alongside apps in global search.
+- ✅ Lock, sleep, restart, shutdown, logout, empty trash
+- ✅ Platform-specific execution (Linux/macOS/Windows)
+- ✅ No prefix — shows alongside apps in global search
 
 ### Snippets (`zap-plugin-snippets`)
 
@@ -95,8 +94,9 @@ Web registry at `zap.dev/extensions`. Install from within Zap. Ratings, verified
 
 ## Infrastructure (build as needed, not upfront)
 
-- **SQLite storage layer** — Needed for clipboard history (P0). Shared across plugins via a `Storage` API on the plugin host. WAL mode for concurrent reads.
+- **SQLite storage layer** ✅ — Used by clipboard and usage tracking. WAL mode for concurrent reads.
+- **Plugin API** ✅ — `Plugin` trait with `PluginMeta` builder, `PluginResult` builder, `fuzzy_match` helper, capability system. Type-safe TS bindings via tauri-specta.
+- **Config file** ✅ — `~/.config/zap/config.toml`. Per-plugin sections.
 - **WASM plugin runtime** — Needed for third-party plugins. Not needed for first-party (Rust trait objects compiled in). Build when the first external developer asks.
 - **Node sidecar runtime** — Needed for Raycast compat (P3). Don't touch until P3.
-- **Config file** — `~/.config/zap/config.toml`. Add fields as features need them. Don't build a settings UI until P2.
 - **Plugin permissions** — Needed when plugins can access network/filesystem. Not needed while all plugins are first-party and compiled in.
