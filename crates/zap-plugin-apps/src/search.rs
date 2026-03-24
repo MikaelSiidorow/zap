@@ -1,5 +1,5 @@
 use crate::platform::AppEntry;
-use zap_core::{fuzzy_match, Action, PluginResult};
+use zap_core::{fuzzy_match, PluginResult};
 
 pub fn search(query: &str, apps: &[AppEntry], plugin_id: &str) -> Vec<PluginResult> {
     if query.is_empty() {

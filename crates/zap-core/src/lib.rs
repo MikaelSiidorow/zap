@@ -1,4 +1,5 @@
 mod fuzzy;
+pub mod icons;
 mod usage;
 
 pub use fuzzy::{fuzzy_match, FuzzyMatch};

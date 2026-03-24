@@ -39,7 +39,17 @@
   });
 
   onMount(async () => {
-    unlisten = await listen('show-window', () => reset());
+    unlisten = await listen('show-window', () => {
+      reset();
+      // Re-trigger search for empty query to show windows
+      commands.search('').then((r) => {
+        if (query === '') {
+          results = r.results;
+          view = r.view;
+          capabilities = r.capabilities;
+        }
+      });
+    });
   });
 
   onDestroy(() => {

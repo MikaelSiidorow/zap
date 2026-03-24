@@ -16,6 +16,7 @@ use zap_plugin_clipboard::ClipboardPlugin;
 use zap_plugin_commands::CommandsPlugin;
 use zap_plugin_emoji::EmojiPlugin;
 use zap_plugin_websearch::WebSearchPlugin;
+use zap_plugin_windows::WindowsPlugin;
 
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
 
@@ -282,6 +283,7 @@ pub fn run() {
     host.register(Box::new(CommandsPlugin::new()));
     host.register(Box::new(EmojiPlugin::new()));
     host.register(Box::new(WebSearchPlugin::new()));
+    host.register(Box::new(WindowsPlugin::new()));
     host.init_all(&plugin_config)
         .expect("failed to initialize plugins");
 

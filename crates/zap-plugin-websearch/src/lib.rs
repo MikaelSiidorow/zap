@@ -122,7 +122,7 @@ impl Plugin for WebSearchPlugin {
         // Partial keyword match (>=2 chars)
         if query.len() >= 2 && !query.contains(' ') {
             let lower = query.to_lowercase();
-            let mut results: Vec<PluginResult> = self
+            let results: Vec<PluginResult> = self
                 .engines
                 .iter()
                 .filter(|e| e.keyword.starts_with(&lower) && e.keyword != lower)
