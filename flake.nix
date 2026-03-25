@@ -58,23 +58,12 @@
             libxkbcommon
           ];
 
-          # macOS: Tauri uses native WebView — only need Apple frameworks
-          darwinDeps =
-            with pkgs;
-            [
-              openssl
-              libiconv
-            ]
-            ++ (with pkgs.darwin.apple_sdk.frameworks; [
-              AppKit
-              CoreServices
-              CoreFoundation
-              Foundation
-              Security
-              WebKit
-              Cocoa
-              Carbon
-            ]);
+          # macOS: Tauri uses native WebView — only need Apple SDK + system libs
+          darwinDeps = with pkgs; [
+            apple-sdk
+            openssl
+            libiconv
+          ];
 
           buildInputs = if isDarwin then darwinDeps else linuxDeps;
 
