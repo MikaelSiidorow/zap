@@ -9,19 +9,81 @@ A cross-platform application launcher built with Tauri, SvelteKit, and Rust.
 - **Clipboard history** — search and paste from clipboard history
 - **Plugin system** — extensible architecture for custom functionality
 
+## Installation with Nix
+
+Zap provides a Nix flake for declarative installation on Linux (NixOS / Home Manager) and macOS (nix-darwin).
+
+### 1. Add the flake input
+
+In your `flake.nix`:
+
+```nix
+inputs = {
+  zap = {
+    url = "github:mikaelsiidorow/zap";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+};
+```
+
+Pass `inputs` through to your Home Manager configuration via `extraSpecialArgs`.
+
+### 2. Install the package
+
+**Home Manager** (works on both Linux and macOS):
+
+```nix
+{ pkgs, inputs, ... }:
+{
+  home.packages = [
+    inputs.zap.packages.${pkgs.stdenv.hostPlatform.system}.default
+  ];
+}
+```
+
+**NixOS** (system-wide):
+
+```nix
+{ pkgs, inputs, ... }:
+{
+  environment.systemPackages = [
+    inputs.zap.packages.${pkgs.stdenv.hostPlatform.system}.default
+  ];
+}
+```
+
+### Supported platforms
+
+| Platform | System | Status |
+|----------|--------|--------|
+| Linux x86_64 | `x86_64-linux` | Tested |
+| Linux ARM | `aarch64-linux` | Supported |
+| macOS Apple Silicon | `aarch64-darwin` | Supported |
+
 ## Development
 
-### Prerequisites
+### With Nix
 
-- [Rust](https://rustup.rs/)
-- [Bun](https://bun.sh/)
-- Linux only: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev`
+```sh
+nix develop
+bun run tauri dev
+```
 
-### Setup
+### Without Nix
+
+Prerequisites: [Rust](https://rustup.rs/), [Bun](https://bun.sh/), and Linux system deps: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev`
 
 ```sh
 bun install
 bun run tauri dev
+```
+
+### Updating JS dependencies for Nix
+
+After modifying `package.json` or `bun.lock`, regenerate the Nix expression:
+
+```sh
+bunx bun2nix
 ```
 
 ### Project structure

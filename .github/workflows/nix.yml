@@ -1,0 +1,40 @@
+name: Nix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-darwin
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - uses: DeterminateSystems/flake-checker-action@main
+
+      - name: Build
+        run: nix build .#zap
+
+      - name: Smoke test (Linux)
+        if: matrix.system == 'x86_64-linux'
+        run: |
+          file result/bin/.zap-wrapped
+          result/bin/.zap-wrapped --help 2>&1 || true
