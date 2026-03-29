@@ -5,10 +5,11 @@ use log::{debug, error, info, warn};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
+use tauri_plugin_autostart::ManagerExt;
 use zap_core::PluginHost;
 use zap_plugin_apps::AppsPlugin;
 use zap_plugin_calc::CalcPlugin;
@@ -143,8 +144,22 @@ fn spawn_socket_listener(app: tauri::AppHandle) {
 fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let show_i = MenuItem::with_id(app, "show", "Show Zap", true, None::<&str>)?;
     let reindex_i = MenuItem::with_id(app, "reindex", "Reindex Apps", true, None::<&str>)?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let autostart_enabled = app.autolaunch().is_enabled().unwrap_or(false);
+    let autostart_i =
+        CheckMenuItem::with_id(app, "autostart", "Launch at Login", true, autostart_enabled, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show_i, &reindex_i, &quit_i])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &show_i,
+            &reindex_i,
+            &separator,
+            &autostart_i,
+            &separator,
+            &quit_i,
+        ],
+    )?;
 
     TrayIconBuilder::new()
         .icon(app.default_window_icon().cloned().unwrap())
@@ -157,6 +172,21 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                 let host = app.state::<PluginHost>();
                 host.refresh_all();
                 info!("Reindex complete");
+            }
+            "autostart" => {
+                let manager = app.autolaunch();
+                let currently_enabled = manager.is_enabled().unwrap_or(false);
+                if currently_enabled {
+                    if let Err(e) = manager.disable() {
+                        error!("Failed to disable autostart: {e}");
+                    } else {
+                        info!("Autostart disabled");
+                    }
+                } else if let Err(e) = manager.enable() {
+                    error!("Failed to enable autostart: {e}");
+                } else {
+                    info!("Autostart enabled");
+                }
             }
             "quit" => app.exit(0),
             _ => {}
@@ -300,6 +330,8 @@ pub fn run() {
             commands::paste_to_frontmost,
             commands::paste_image_to_frontmost,
             commands::copy_image_to_clipboard,
+            commands::get_autostart,
+            commands::set_autostart,
         ]);
 
     #[cfg(debug_assertions)]
@@ -311,9 +343,20 @@ pub fn run() {
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .invoke_handler(specta_builder.invoke_handler())
         .setup(move |app| {
             specta_builder.mount_events(app);
+
+            // Enable autostart by default on first launch
+            let autolaunch = app.autolaunch();
+            if !autolaunch.is_enabled().unwrap_or(true) {
+                if let Err(e) = autolaunch.enable() {
+                    warn!("Failed to enable autostart: {e}");
+                } else {
+                    info!("Autostart enabled (first launch)");
+                }
+            }
 
             #[cfg(desktop)]
             setup_shortcut(app);

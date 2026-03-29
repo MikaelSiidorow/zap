@@ -1,4 +1,5 @@
 use tauri::Manager;
+use tauri_plugin_autostart::ManagerExt;
 use zap_core::{KeyboardHint, PluginHost, SearchResponse};
 
 #[tauri::command]
@@ -53,6 +54,27 @@ pub fn toggle_pin(
 #[specta::specta]
 pub fn open_url(url: String) -> Result<(), String> {
     open::that(url).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Autostart
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable().map_err(|e| e.to_string())
+    } else {
+        manager.disable().map_err(|e| e.to_string())
+    }
 }
 
 // ---------------------------------------------------------------------------
