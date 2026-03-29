@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.6](https://github.com/MikaelSiidorow/zap/compare/v0.1.5...v0.1.6) (2026-03-29)
+
+
+### Features
+
+* add autostart with tray toggle, default on ([0cb3898](https://github.com/MikaelSiidorow/zap/commit/0cb389807063414c44712d689f3093e793f3b2e1))
+* add emoji picker plugin with grid layout, pinning, and keyboard nav ([88a07b6](https://github.com/MikaelSiidorow/zap/commit/88a07b64b388814c375f9249f71c7b4e5304c17d))
+* add Nix flake for cross-platform builds and installation ([5de8c24](https://github.com/MikaelSiidorow/zap/commit/5de8c24865d854118efb5b74a1344871f311c84b))
+* add usage-based ranking with time decay for search results ([411b4cf](https://github.com/MikaelSiidorow/zap/commit/411b4cfd56cf4ecf867d3d83253c3c20a1a90521))
+* add window switcher plugin with X11 support and shared icon resolver ([5fdd36e](https://github.com/MikaelSiidorow/zap/commit/5fdd36e347b8a32e63da0c7b892aa5e15e36afba))
+
+
+### Bug Fixes
+
+* improve Rust idioms — remove panics, deduplicate, safe casts ([cb10c06](https://github.com/MikaelSiidorow/zap/commit/cb10c06529e81c94353f25b576d83adccb8bf659))
+* use new apple-sdk pattern for darwin and add CI nix cache ([230bd89](https://github.com/MikaelSiidorow/zap/commit/230bd89c0f03e707a08608686cbc4fd5e3b90363))
+
 ## [0.1.5](https://github.com/MikaelSiidorow/zap/compare/v0.1.4...v0.1.5) (2026-03-21)
 
 
